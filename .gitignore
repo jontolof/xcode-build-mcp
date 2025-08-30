@@ -1,0 +1,111 @@
+# If you prefer the allow list template instead of the deny list, see community template:
+# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
+#
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+!*.env.test
+**/testdata/output/
+*.test.out
+
+# Debug binaries
+__debug_bin*
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+*_coverage.out
+coverage_*.out
+
+# Dependency directories
+vendor/
+
+# Go build artifacts and binaries
+bin/
+benchmark
+/benchmark
+docker-compose-mcp
+/docker-compose-mcp
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.test.example
+
+# Coverage reports
+coverage.html
+coverage*.html
+
+# Claude Code personal settings
+.claude/
+
+# MCP configuration (contains local paths)
+.mcp.json
+
+# macOS system files
+.DS_Store
+*.DS_Store
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Air hot-reload config (local development)
+.air.toml
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Log files
+*.log
+logs/
+*.logs
+
+# Session storage
+.sessions/
+sessions/
+*.session
+
+# Docker test artifacts
+docker-compose.test.yml
+docker-compose.override.yml
+.docker/
+
+# Profiling data
+*.prof
+*.pprof
+*.test.prof
+cpu.prof
+mem.prof
+trace.out
+
+# GoReleaser artifacts
+dist/
+.goreleaser.yaml.bak
+
+# Test fixtures with potential sensitive data
+test/fixtures/*.env
+test/fixtures/secrets/
+
+# Cache directories
+.cache/
+*.cache
+
+# MCP server runtime files
+mcp-state/
+.mcp-runtime/
