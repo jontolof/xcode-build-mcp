@@ -198,6 +198,36 @@ func (s *Server) registerTools() error {
 		return fmt.Errorf("failed to register xcode_clean tool: %w", err)
 	}
 	
+	// Register discover projects tool
+	discoverTool := tools.NewDiscoverProjectsTool(executor, parser, s.logger)
+	if err := s.registry.Register(discoverTool); err != nil {
+		return fmt.Errorf("failed to register discover_projects tool: %w", err)
+	}
+	
+	// Register list simulators tool
+	listSimulatorsTool := tools.NewListSimulatorsTool(executor, parser, s.logger)
+	if err := s.registry.Register(listSimulatorsTool); err != nil {
+		return fmt.Errorf("failed to register list_simulators tool: %w", err)
+	}
+	
+	// Register simulator control tool
+	simulatorControlTool := tools.NewSimulatorControlTool(executor, parser, s.logger)
+	if err := s.registry.Register(simulatorControlTool); err != nil {
+		return fmt.Errorf("failed to register simulator_control tool: %w", err)
+	}
+	
+	// Register install app tool
+	installAppTool := tools.NewInstallAppTool(executor, parser, s.logger)
+	if err := s.registry.Register(installAppTool); err != nil {
+		return fmt.Errorf("failed to register install_app tool: %w", err)
+	}
+	
+	// Register launch app tool
+	launchAppTool := tools.NewLaunchAppTool(executor, parser, s.logger)
+	if err := s.registry.Register(launchAppTool); err != nil {
+		return fmt.Errorf("failed to register launch_app tool: %w", err)
+	}
+	
 	s.logger.Printf("Registered %d tools successfully", s.registry.Count())
 	return nil
 }

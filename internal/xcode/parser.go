@@ -340,3 +340,73 @@ func (p *Parser) ExtractWarnings(output string) []types.BuildWarning {
 	
 	return warnings
 }
+
+func (p *Parser) ParseSchemes(output string) []string {
+	var schemes []string
+	
+	scanner := bufio.NewScanner(strings.NewReader(output))
+	inSchemesSection := false
+	
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		
+		// Look for the schemes section
+		if strings.Contains(line, "Schemes:") {
+			inSchemesSection = true
+			continue
+		}
+		
+		// Stop when we hit another section
+		if inSchemesSection && (strings.Contains(line, "Targets:") || strings.Contains(line, "Build Configurations:") || line == "") {
+			if strings.Contains(line, "Targets:") || strings.Contains(line, "Build Configurations:") {
+				break
+			}
+			continue
+		}
+		
+		// Extract scheme names (they're typically indented)
+		if inSchemesSection && strings.HasPrefix(line, "    ") {
+			scheme := strings.TrimSpace(line)
+			if scheme != "" {
+				schemes = append(schemes, scheme)
+			}
+		}
+	}
+	
+	return schemes
+}
+
+func (p *Parser) ParseTargets(output string) []string {
+	var targets []string
+	
+	scanner := bufio.NewScanner(strings.NewReader(output))
+	inTargetsSection := false
+	
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		
+		// Look for the targets section
+		if strings.Contains(line, "Targets:") {
+			inTargetsSection = true
+			continue
+		}
+		
+		// Stop when we hit another section
+		if inTargetsSection && (strings.Contains(line, "Build Configurations:") || strings.Contains(line, "Schemes:") || line == "") {
+			if strings.Contains(line, "Build Configurations:") || strings.Contains(line, "Schemes:") {
+				break
+			}
+			continue
+		}
+		
+		// Extract target names (they're typically indented)
+		if inTargetsSection && strings.HasPrefix(line, "    ") {
+			target := strings.TrimSpace(line)
+			if target != "" {
+				targets = append(targets, target)
+			}
+		}
+	}
+	
+	return targets
+}
