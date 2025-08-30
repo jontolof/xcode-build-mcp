@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	
+	"github.com/jontolof/xcode-build-mcp/internal/tools"
+	"github.com/jontolof/xcode-build-mcp/internal/xcode"
 )
 
 type Server struct {
@@ -173,5 +176,28 @@ func (s *Server) errorResponse(id interface{}, code int, message string, err err
 }
 
 func (s *Server) registerTools() error {
+	// Create xcode components
+	executor := xcode.NewExecutor(s.logger)
+	parser := xcode.NewParser()
+	
+	// Register build tool
+	buildTool := tools.NewXcodeBuildTool(executor, parser, s.logger)
+	if err := s.registry.Register(buildTool); err != nil {
+		return fmt.Errorf("failed to register xcode_build tool: %w", err)
+	}
+	
+	// Register test tool  
+	testTool := tools.NewXcodeTestTool(executor, parser, s.logger)
+	if err := s.registry.Register(testTool); err != nil {
+		return fmt.Errorf("failed to register xcode_test tool: %w", err)
+	}
+	
+	// Register clean tool
+	cleanTool := tools.NewXcodeCleanTool(executor, parser, s.logger)
+	if err := s.registry.Register(cleanTool); err != nil {
+		return fmt.Errorf("failed to register xcode_clean tool: %w", err)
+	}
+	
+	s.logger.Printf("Registered %d tools successfully", s.registry.Count())
 	return nil
 }
