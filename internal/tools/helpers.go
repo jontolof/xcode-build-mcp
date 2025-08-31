@@ -1,6 +1,14 @@
 package tools
 
-import "fmt"
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os/exec"
+	"time"
+
+	"github.com/jontolof/xcode-build-mcp/pkg/types"
+)
 
 // Helper functions for parameter parsing
 func parseStringParam(args map[string]interface{}, key string, required bool) (string, error) {
@@ -59,4 +67,50 @@ func createJSONSchema(schemaType string, properties map[string]interface{}, requ
 	}
 
 	return schema
+}
+
+// selectBestSimulator is a shared helper function to auto-select a booted simulator
+// with proper timeout handling to prevent hanging in test environments
+func selectBestSimulator(platform string) (*types.SimulatorInfo, error) {
+	// Add timeout to prevent hanging in test environments
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	
+	cmd := exec.CommandContext(ctx, "xcrun", "simctl", "list", "devices", "--json")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list simulators (timeout or command failed): %w", err)
+	}
+
+	var simList struct {
+		Devices map[string][]struct {
+			UDID         string `json:"udid"`
+			Name         string `json:"name"`
+			State        string `json:"state"`
+			DeviceTypeID string `json:"deviceTypeIdentifier"`
+			IsAvailable  bool   `json:"isAvailable"`
+		} `json:"devices"`
+	}
+
+	if err := json.Unmarshal(output, &simList); err != nil {
+		return nil, fmt.Errorf("failed to parse simulator list: %w", err)
+	}
+
+	// Look for booted simulators first
+	for runtime, devices := range simList.Devices {
+		for _, device := range devices {
+			if device.State == "Booted" && device.IsAvailable {
+				return &types.SimulatorInfo{
+					UDID:       device.UDID,
+					Name:       device.Name,
+					State:      device.State,
+					DeviceType: device.DeviceTypeID,
+					Runtime:    runtime,
+					Available:  device.IsAvailable,
+				}, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("no booted simulators found (this is expected in test environments)")
 }

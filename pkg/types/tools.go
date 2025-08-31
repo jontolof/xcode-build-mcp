@@ -203,3 +203,114 @@ type AppLaunchResult struct {
 	ProcessID int           `json:"process_id,omitempty"`
 	ExitCode  *int          `json:"exit_code,omitempty"`
 }
+
+type SchemesListParams struct {
+	ProjectPath string `json:"project_path,omitempty"`
+	Workspace   string `json:"workspace,omitempty"`
+	Project     string `json:"project,omitempty"`
+}
+
+type SchemesListResult struct {
+	Schemes  []SchemeInfo  `json:"schemes"`
+	Duration time.Duration `json:"duration"`
+}
+
+type SchemeInfo struct {
+	Name         string   `json:"name"`
+	ProjectPath  string   `json:"project_path"`
+	SharedScheme bool     `json:"shared_scheme"`
+	Targets      []string `json:"targets,omitempty"`
+}
+
+type LogCaptureParams struct {
+	UDID         string `json:"udid,omitempty"`
+	DeviceType   string `json:"device_type,omitempty"`
+	BundleID     string `json:"bundle_id,omitempty"`
+	LogLevel     string `json:"log_level,omitempty"`
+	FilterText   string `json:"filter_text,omitempty"`
+	FollowMode   bool   `json:"follow_mode,omitempty"`
+	MaxLines     int    `json:"max_lines,omitempty"`
+	TimeoutSecs  int    `json:"timeout_secs,omitempty"`
+}
+
+type LogCaptureResult struct {
+	Success   bool          `json:"success"`
+	Duration  time.Duration `json:"duration"`
+	LogLines  []LogEntry    `json:"log_lines"`
+	Truncated bool          `json:"truncated,omitempty"`
+}
+
+type LogEntry struct {
+	Timestamp string `json:"timestamp"`
+	Level     string `json:"level"`
+	Category  string `json:"category,omitempty"`
+	Message   string `json:"message"`
+	Process   string `json:"process,omitempty"`
+}
+
+type ScreenshotParams struct {
+	UDID       string `json:"udid,omitempty"`
+	DeviceType string `json:"device_type,omitempty"`
+	OutputPath string `json:"output_path,omitempty"`
+	Format     string `json:"format,omitempty"`
+}
+
+type ScreenshotResult struct {
+	Success     bool          `json:"success"`
+	Duration    time.Duration `json:"duration"`
+	FilePath    string        `json:"file_path"`
+	FileSize    int64         `json:"file_size,omitempty"`
+	Dimensions  string        `json:"dimensions,omitempty"`
+}
+
+type UIDescribeParams struct {
+	UDID         string `json:"udid,omitempty"`
+	DeviceType   string `json:"device_type,omitempty"`
+	Format       string `json:"format,omitempty"`
+	MaxDepth     int    `json:"max_depth,omitempty"`
+	IncludeText  bool   `json:"include_text,omitempty"`
+}
+
+type UIDescribeResult struct {
+	Success     bool          `json:"success"`
+	Duration    time.Duration `json:"duration"`
+	UIHierarchy interface{}   `json:"ui_hierarchy"`
+	ElementCount int          `json:"element_count"`
+}
+
+type UIInteractParams struct {
+	UDID        string                 `json:"udid,omitempty"`
+	DeviceType  string                 `json:"device_type,omitempty"`
+	Action      string                 `json:"action"`
+	Target      string                 `json:"target,omitempty"`
+	Coordinates []float64              `json:"coordinates,omitempty"`
+	Text        string                 `json:"text,omitempty"`
+	Timeout     int                    `json:"timeout,omitempty"`
+	Parameters  map[string]interface{} `json:"parameters,omitempty"`
+}
+
+type UIInteractResult struct {
+	Success  bool          `json:"success"`
+	Duration time.Duration `json:"duration"`
+	Output   string        `json:"output"`
+	Found    bool          `json:"found,omitempty"`
+}
+
+type AppInfoParams struct {
+	AppPath    string `json:"app_path,omitempty"`
+	BundleID   string `json:"bundle_id,omitempty"`
+	UDID       string `json:"udid,omitempty"`
+	DeviceType string `json:"device_type,omitempty"`
+}
+
+type AppInfoResult struct {
+	Success      bool                   `json:"success"`
+	Duration     time.Duration          `json:"duration"`
+	BundleID     string                 `json:"bundle_id,omitempty"`
+	Version      string                 `json:"version,omitempty"`
+	BuildNumber  string                 `json:"build_number,omitempty"`
+	DisplayName  string                 `json:"display_name,omitempty"`
+	MinOSVersion string                 `json:"min_os_version,omitempty"`
+	Entitlements map[string]interface{} `json:"entitlements,omitempty"`
+	IconPaths    []string               `json:"icon_paths,omitempty"`
+}
