@@ -14,6 +14,10 @@
 **/testdata/output/
 *.test.out
 
+# Test artifacts and screenshots
+internal/tools/screenshots/
+*.png.test
+
 # Debug binaries
 __debug_bin*
 

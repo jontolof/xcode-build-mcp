@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
     - uses: actions/checkout@v3
     
@@ -16,6 +16,9 @@ jobs:
       uses: actions/setup-go@v4
       with:
         go-version: '1.21'
+    
+    - name: Select Xcode version
+      run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
     
     - name: Check formatting
       run: |
@@ -25,4 +28,8 @@ jobs:
         fi
     
     - name: Run tests
-      run: go test -v ./... || echo "No tests yet"
+      env:
+        MCP_TEST_MODE: "true"
+      run: |
+        echo "Running tests in CI environment with mock responses"
+        go test -v ./...
