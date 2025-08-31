@@ -5,53 +5,53 @@ import (
 )
 
 type BuildParams struct {
-	ProjectPath  string            `json:"project_path,omitempty"`
-	Workspace    string            `json:"workspace,omitempty"`
-	Project      string            `json:"project,omitempty"`
-	Scheme       string            `json:"scheme,omitempty"`
-	Target       string            `json:"target,omitempty"`
-	Configuration string           `json:"configuration,omitempty"`
-	SDK          string            `json:"sdk,omitempty"`
-	Destination  string            `json:"destination,omitempty"`
-	Arch         string            `json:"arch,omitempty"`
-	OutputMode   string            `json:"output_mode,omitempty"`
-	Clean        bool              `json:"clean,omitempty"`
-	Archive      bool              `json:"archive,omitempty"`
-	DerivedData  string            `json:"derived_data,omitempty"`
-	Environment  map[string]string `json:"environment,omitempty"`
-	ExtraArgs    []string          `json:"extra_args,omitempty"`
-}
-
-type BuildResult struct {
-	Success         bool                   `json:"success"`
-	Duration        time.Duration          `json:"duration"`
-	Output          string                 `json:"output"`
-	FilteredOutput  string                 `json:"filtered_output"`
-	Errors          []BuildError           `json:"errors,omitempty"`
-	Warnings        []BuildWarning         `json:"warnings,omitempty"`
-	ArtifactPaths   []string               `json:"artifact_paths,omitempty"`
-	BuildSettings   map[string]interface{} `json:"build_settings,omitempty"`
-	ExitCode        int                    `json:"exit_code"`
-}
-
-type TestParams struct {
 	ProjectPath   string            `json:"project_path,omitempty"`
 	Workspace     string            `json:"workspace,omitempty"`
 	Project       string            `json:"project,omitempty"`
 	Scheme        string            `json:"scheme,omitempty"`
 	Target        string            `json:"target,omitempty"`
-	TestPlan      string            `json:"test_plan,omitempty"`
+	Configuration string            `json:"configuration,omitempty"`
 	SDK           string            `json:"sdk,omitempty"`
 	Destination   string            `json:"destination,omitempty"`
-	OnlyTesting   []string          `json:"only_testing,omitempty"`
-	SkipTesting   []string          `json:"skip_testing,omitempty"`
+	Arch          string            `json:"arch,omitempty"`
 	OutputMode    string            `json:"output_mode,omitempty"`
-	Parallel      bool              `json:"parallel,omitempty"`
-	Coverage      bool              `json:"coverage,omitempty"`
-	ResultBundle  string            `json:"result_bundle,omitempty"`
+	Clean         bool              `json:"clean,omitempty"`
+	Archive       bool              `json:"archive,omitempty"`
 	DerivedData   string            `json:"derived_data,omitempty"`
 	Environment   map[string]string `json:"environment,omitempty"`
 	ExtraArgs     []string          `json:"extra_args,omitempty"`
+}
+
+type BuildResult struct {
+	Success        bool                   `json:"success"`
+	Duration       time.Duration          `json:"duration"`
+	Output         string                 `json:"output"`
+	FilteredOutput string                 `json:"filtered_output"`
+	Errors         []BuildError           `json:"errors,omitempty"`
+	Warnings       []BuildWarning         `json:"warnings,omitempty"`
+	ArtifactPaths  []string               `json:"artifact_paths,omitempty"`
+	BuildSettings  map[string]interface{} `json:"build_settings,omitempty"`
+	ExitCode       int                    `json:"exit_code"`
+}
+
+type TestParams struct {
+	ProjectPath  string            `json:"project_path,omitempty"`
+	Workspace    string            `json:"workspace,omitempty"`
+	Project      string            `json:"project,omitempty"`
+	Scheme       string            `json:"scheme,omitempty"`
+	Target       string            `json:"target,omitempty"`
+	TestPlan     string            `json:"test_plan,omitempty"`
+	SDK          string            `json:"sdk,omitempty"`
+	Destination  string            `json:"destination,omitempty"`
+	OnlyTesting  []string          `json:"only_testing,omitempty"`
+	SkipTesting  []string          `json:"skip_testing,omitempty"`
+	OutputMode   string            `json:"output_mode,omitempty"`
+	Parallel     bool              `json:"parallel,omitempty"`
+	Coverage     bool              `json:"coverage,omitempty"`
+	ResultBundle string            `json:"result_bundle,omitempty"`
+	DerivedData  string            `json:"derived_data,omitempty"`
+	Environment  map[string]string `json:"environment,omitempty"`
+	ExtraArgs    []string          `json:"extra_args,omitempty"`
 }
 
 type TestResult struct {
@@ -65,27 +65,27 @@ type TestResult struct {
 }
 
 type TestSummary struct {
-	TotalTests     int           `json:"total_tests"`
-	PassedTests    int           `json:"passed_tests"`
-	FailedTests    int           `json:"failed_tests"`
-	SkippedTests   int           `json:"skipped_tests"`
-	TestResults    []TestCase    `json:"test_results"`
+	TotalTests         int        `json:"total_tests"`
+	PassedTests        int        `json:"passed_tests"`
+	FailedTests        int        `json:"failed_tests"`
+	SkippedTests       int        `json:"skipped_tests"`
+	TestResults        []TestCase `json:"test_results"`
 	FailedTestsDetails []TestCase `json:"failed_tests_details,omitempty"`
 }
 
 type TestCase struct {
-	Name       string        `json:"name"`
-	ClassName  string        `json:"class_name"`
-	Status     string        `json:"status"`
-	Duration   time.Duration `json:"duration"`
-	Message    string        `json:"message,omitempty"`
-	Location   string        `json:"location,omitempty"`
+	Name      string        `json:"name"`
+	ClassName string        `json:"class_name"`
+	Status    string        `json:"status"`
+	Duration  time.Duration `json:"duration"`
+	Message   string        `json:"message,omitempty"`
+	Location  string        `json:"location,omitempty"`
 }
 
 type Coverage struct {
-	LineCoverage   float64            `json:"line_coverage"`
-	BranchCoverage float64            `json:"branch_coverage"`
-	FilesCoverage  []FileCoverage     `json:"files_coverage"`
+	LineCoverage   float64        `json:"line_coverage"`
+	BranchCoverage float64        `json:"branch_coverage"`
+	FilesCoverage  []FileCoverage `json:"files_coverage"`
 }
 
 type FileCoverage struct {
@@ -115,15 +115,15 @@ type CleanResult struct {
 }
 
 type ProjectDiscovery struct {
-	MaxDepth     int      `json:"max_depth,omitempty"`
-	IncludeHidden bool    `json:"include_hidden,omitempty"`
-	RootPath     string   `json:"root_path,omitempty"`
-	Patterns     []string `json:"patterns,omitempty"`
+	MaxDepth      int      `json:"max_depth,omitempty"`
+	IncludeHidden bool     `json:"include_hidden,omitempty"`
+	RootPath      string   `json:"root_path,omitempty"`
+	Patterns      []string `json:"patterns,omitempty"`
 }
 
 type DiscoveryResult struct {
-	Projects   []ProjectInfo `json:"projects"`
-	Duration   time.Duration `json:"duration"`
+	Projects []ProjectInfo `json:"projects"`
+	Duration time.Duration `json:"duration"`
 }
 
 type ProjectInfo struct {
@@ -136,11 +136,11 @@ type ProjectInfo struct {
 }
 
 type SimulatorListParams struct {
-	Platform     string `json:"platform,omitempty"`
-	DeviceType   string `json:"device_type,omitempty"`
-	Runtime      string `json:"runtime,omitempty"`
-	Available    *bool  `json:"available,omitempty"`
-	State        string `json:"state,omitempty"`
+	Platform   string `json:"platform,omitempty"`
+	DeviceType string `json:"device_type,omitempty"`
+	Runtime    string `json:"runtime,omitempty"`
+	Available  *bool  `json:"available,omitempty"`
+	State      string `json:"state,omitempty"`
 }
 
 type SimulatorListResult struct {
@@ -149,42 +149,42 @@ type SimulatorListResult struct {
 }
 
 type SimulatorInfo struct {
-	UDID         string `json:"udid"`
-	Name         string `json:"name"`
-	DeviceType   string `json:"device_type"`
-	Runtime      string `json:"runtime"`
-	State        string `json:"state"`
-	Available    bool   `json:"available"`
-	Platform     string `json:"platform"`
+	UDID       string `json:"udid"`
+	Name       string `json:"name"`
+	DeviceType string `json:"device_type"`
+	Runtime    string `json:"runtime"`
+	State      string `json:"state"`
+	Available  bool   `json:"available"`
+	Platform   string `json:"platform"`
 }
 
 type SimulatorControlParams struct {
-	UDID      string `json:"udid"`
-	Action    string `json:"action"`
-	Timeout   int    `json:"timeout,omitempty"`
+	UDID    string `json:"udid"`
+	Action  string `json:"action"`
+	Timeout int    `json:"timeout,omitempty"`
 }
 
 type SimulatorControlResult struct {
-	Success        bool          `json:"success"`
-	Duration       time.Duration `json:"duration"`
-	Output         string        `json:"output"`
-	PreviousState  string        `json:"previous_state"`
-	CurrentState   string        `json:"current_state"`
+	Success       bool          `json:"success"`
+	Duration      time.Duration `json:"duration"`
+	Output        string        `json:"output"`
+	PreviousState string        `json:"previous_state"`
+	CurrentState  string        `json:"current_state"`
 }
 
 type AppInstallParams struct {
-	AppPath     string `json:"app_path"`
-	UDID        string `json:"udid,omitempty"`
-	DeviceType  string `json:"device_type,omitempty"`
-	Replace     bool   `json:"replace,omitempty"`
+	AppPath    string `json:"app_path"`
+	UDID       string `json:"udid,omitempty"`
+	DeviceType string `json:"device_type,omitempty"`
+	Replace    bool   `json:"replace,omitempty"`
 }
 
 type AppInstallResult struct {
-	Success        bool          `json:"success"`
-	Duration       time.Duration `json:"duration"`
-	Output         string        `json:"output"`
-	BundleID       string        `json:"bundle_id"`
-	InstalledPath  string        `json:"installed_path,omitempty"`
+	Success       bool          `json:"success"`
+	Duration      time.Duration `json:"duration"`
+	Output        string        `json:"output"`
+	BundleID      string        `json:"bundle_id"`
+	InstalledPath string        `json:"installed_path,omitempty"`
 }
 
 type AppLaunchParams struct {
@@ -223,14 +223,14 @@ type SchemeInfo struct {
 }
 
 type LogCaptureParams struct {
-	UDID         string `json:"udid,omitempty"`
-	DeviceType   string `json:"device_type,omitempty"`
-	BundleID     string `json:"bundle_id,omitempty"`
-	LogLevel     string `json:"log_level,omitempty"`
-	FilterText   string `json:"filter_text,omitempty"`
-	FollowMode   bool   `json:"follow_mode,omitempty"`
-	MaxLines     int    `json:"max_lines,omitempty"`
-	TimeoutSecs  int    `json:"timeout_secs,omitempty"`
+	UDID        string `json:"udid,omitempty"`
+	DeviceType  string `json:"device_type,omitempty"`
+	BundleID    string `json:"bundle_id,omitempty"`
+	LogLevel    string `json:"log_level,omitempty"`
+	FilterText  string `json:"filter_text,omitempty"`
+	FollowMode  bool   `json:"follow_mode,omitempty"`
+	MaxLines    int    `json:"max_lines,omitempty"`
+	TimeoutSecs int    `json:"timeout_secs,omitempty"`
 }
 
 type LogCaptureResult struct {
@@ -256,26 +256,26 @@ type ScreenshotParams struct {
 }
 
 type ScreenshotResult struct {
-	Success     bool          `json:"success"`
-	Duration    time.Duration `json:"duration"`
-	FilePath    string        `json:"file_path"`
-	FileSize    int64         `json:"file_size,omitempty"`
-	Dimensions  string        `json:"dimensions,omitempty"`
+	Success    bool          `json:"success"`
+	Duration   time.Duration `json:"duration"`
+	FilePath   string        `json:"file_path"`
+	FileSize   int64         `json:"file_size,omitempty"`
+	Dimensions string        `json:"dimensions,omitempty"`
 }
 
 type UIDescribeParams struct {
-	UDID         string `json:"udid,omitempty"`
-	DeviceType   string `json:"device_type,omitempty"`
-	Format       string `json:"format,omitempty"`
-	MaxDepth     int    `json:"max_depth,omitempty"`
-	IncludeText  bool   `json:"include_text,omitempty"`
+	UDID        string `json:"udid,omitempty"`
+	DeviceType  string `json:"device_type,omitempty"`
+	Format      string `json:"format,omitempty"`
+	MaxDepth    int    `json:"max_depth,omitempty"`
+	IncludeText bool   `json:"include_text,omitempty"`
 }
 
 type UIDescribeResult struct {
-	Success     bool          `json:"success"`
-	Duration    time.Duration `json:"duration"`
-	UIHierarchy interface{}   `json:"ui_hierarchy"`
-	ElementCount int          `json:"element_count"`
+	Success      bool          `json:"success"`
+	Duration     time.Duration `json:"duration"`
+	UIHierarchy  interface{}   `json:"ui_hierarchy"`
+	ElementCount int           `json:"element_count"`
 }
 
 type UIInteractParams struct {

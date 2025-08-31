@@ -33,13 +33,13 @@ func (e *Executor) ExecuteCommand(ctx context.Context, args []string) (*CommandR
 
 	start := time.Now()
 	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
-	
+
 	// Set up pipes for capturing output
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create stdout pipe: %w", err)
 	}
-	
+
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create stderr pipe: %w", err)
@@ -52,7 +52,7 @@ func (e *Executor) ExecuteCommand(ctx context.Context, args []string) (*CommandR
 
 	// Capture output
 	outputChan := make(chan string, 2)
-	
+
 	// Read stdout
 	go func() {
 		defer func() { outputChan <- "" }()
@@ -65,7 +65,7 @@ func (e *Executor) ExecuteCommand(ctx context.Context, args []string) (*CommandR
 		}
 		outputChan <- output.String()
 	}()
-	
+
 	// Read stderr
 	go func() {
 		defer func() { outputChan <- "" }()
@@ -82,11 +82,11 @@ func (e *Executor) ExecuteCommand(ctx context.Context, args []string) (*CommandR
 	// Wait for the command to finish
 	err = cmd.Wait()
 	duration := time.Since(start)
-	
+
 	// Get outputs
 	stdoutOutput := <-outputChan
 	stderrOutput := <-outputChan
-	
+
 	var combinedOutput strings.Builder
 	if stdoutOutput != "" {
 		combinedOutput.WriteString(stdoutOutput)
@@ -114,7 +114,7 @@ func (e *Executor) ExecuteCommand(ctx context.Context, args []string) (*CommandR
 	}
 
 	e.logger.Printf("Command completed in %v with exit code %d", duration, result.ExitCode)
-	
+
 	return result, nil
 }
 
@@ -124,19 +124,19 @@ func (e *Executor) FindXcodeCommand() (string, error) {
 		"/usr/bin/xcodebuild",
 		"/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild",
 	}
-	
+
 	// Also check PATH
 	if path, err := exec.LookPath("xcodebuild"); err == nil {
 		paths = append([]string{path}, paths...)
 	}
-	
+
 	for _, path := range paths {
 		if _, err := os.Stat(path); err == nil {
 			e.logger.Printf("Found xcodebuild at: %s", path)
 			return path, nil
 		}
 	}
-	
+
 	return "", fmt.Errorf("xcodebuild not found in any expected location")
 }
 

@@ -133,7 +133,7 @@ func (t *InstallAppTool) parseParams(args map[string]interface{}) (*types.AppIns
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Expand path if needed
 	if strings.HasPrefix(appPath, "~") {
 		homeDir, err := os.UserHomeDir()
@@ -141,7 +141,7 @@ func (t *InstallAppTool) parseParams(args map[string]interface{}) (*types.AppIns
 			appPath = strings.Replace(appPath, "~", homeDir, 1)
 		}
 	}
-	
+
 	// Convert to absolute path
 	absPath, err := filepath.Abs(appPath)
 	if err == nil {
@@ -221,28 +221,28 @@ func (t *InstallAppTool) selectBestDevice(ctx context.Context, deviceTypeFilter 
 			}
 
 			deviceType := extractDeviceTypeFromId(device.DeviceTypeId)
-			
+
 			// Apply device type filter if provided
 			if deviceTypeFilter != "" && !strings.Contains(strings.ToLower(deviceType), strings.ToLower(deviceTypeFilter)) {
 				continue
 			}
 
 			score := 0
-			
+
 			// Prefer iOS devices
 			if platform == "iOS" {
 				score += 100
 			} else if platform == "tvOS" {
 				score += 50
 			}
-			
+
 			// Prefer booted devices
 			if device.State == "Booted" {
 				score += 200
 			} else if device.State == "Shutdown" {
 				score += 10
 			}
-			
+
 			// Prefer iPhone over iPad
 			if strings.Contains(deviceType, "iPhone") {
 				score += 30
@@ -310,7 +310,7 @@ func (t *InstallAppTool) installApp(ctx context.Context, appPath, udid string, r
 		if errorOutput == "" {
 			errorOutput = result.Output
 		}
-		
+
 		// Check for common error cases and provide better error messages
 		if strings.Contains(errorOutput, "Unable to install") {
 			return "", fmt.Errorf("unable to install app: %s", strings.TrimSpace(errorOutput))
@@ -321,7 +321,7 @@ func (t *InstallAppTool) installApp(ctx context.Context, appPath, udid string, r
 		} else if strings.Contains(errorOutput, "Invalid app") {
 			return "", fmt.Errorf("invalid app bundle: %s", strings.TrimSpace(errorOutput))
 		}
-		
+
 		return "", fmt.Errorf("installation failed (exit code %d): %s", result.ExitCode, strings.TrimSpace(errorOutput))
 	}
 
@@ -331,7 +331,7 @@ func (t *InstallAppTool) installApp(ctx context.Context, appPath, udid string, r
 func (t *InstallAppTool) extractBundleID(ctx context.Context, appPath string) (string, error) {
 	// Check if it's a .app bundle or .ipa
 	ext := filepath.Ext(appPath)
-	
+
 	var infoPlistPath string
 	if ext == ".app" {
 		// For .app bundles, Info.plist is directly in the bundle
@@ -346,7 +346,7 @@ func (t *InstallAppTool) extractBundleID(ctx context.Context, appPath string) (s
 
 	// Use plutil to read the bundle identifier
 	args := []string{"plutil", "-p", infoPlistPath}
-	
+
 	result, err := t.executor.ExecuteCommand(ctx, args)
 	if err != nil {
 		return "", err

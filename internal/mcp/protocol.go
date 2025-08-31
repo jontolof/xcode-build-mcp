@@ -25,9 +25,9 @@ type Error struct {
 }
 
 type InitializeParams struct {
-	ProtocolVersion string                 `json:"protocolVersion"`
-	Capabilities    ClientCapabilities     `json:"capabilities"`
-	ClientInfo      ClientInfo             `json:"clientInfo"`
+	ProtocolVersion string             `json:"protocolVersion"`
+	Capabilities    ClientCapabilities `json:"capabilities"`
+	ClientInfo      ClientInfo         `json:"clientInfo"`
 }
 
 type ClientCapabilities struct {
@@ -92,9 +92,9 @@ type CallToolParams struct {
 }
 
 type CallToolResult struct {
-	Content   []Content `json:"content"`
-	IsError   *bool     `json:"isError,omitempty"`
-	Meta      *Meta     `json:"_meta,omitempty"`
+	Content []Content `json:"content"`
+	IsError *bool     `json:"isError,omitempty"`
+	Meta    *Meta     `json:"_meta,omitempty"`
 }
 
 type Content struct {

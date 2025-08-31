@@ -65,7 +65,7 @@ func (t *Screenshot) Execute(ctx context.Context, args map[string]interface{}) (
 	}
 
 	var p types.ScreenshotParams
-	
+
 	// Parse parameters from args
 	if udid, exists := args["udid"]; exists {
 		if str, ok := udid.(string); ok {
@@ -137,7 +137,6 @@ func (t *Screenshot) Execute(ctx context.Context, args map[string]interface{}) (
 	return string(resultJSON), nil
 }
 
-
 func (t *Screenshot) captureScreenshot(ctx context.Context, params *types.ScreenshotParams) (*types.ScreenshotResult, error) {
 	if params.UDID == "" {
 		return &types.ScreenshotResult{Success: false}, fmt.Errorf("device UDID is required")
@@ -162,12 +161,12 @@ func (t *Screenshot) captureScreenshot(ctx context.Context, params *types.Screen
 
 	// Build screenshot command
 	args := []string{"simctl", "io", params.UDID, "screenshot"}
-	
+
 	// Add format specification for JPEG
 	if strings.ToLower(params.Format) == "jpeg" || strings.ToLower(params.Format) == "jpg" {
 		args = append(args, "--type", "jpeg")
 	}
-	
+
 	args = append(args, params.OutputPath)
 
 	// Execute screenshot command
@@ -214,7 +213,7 @@ func (t *Screenshot) getImageDimensions(imagePath string) string {
 	// Parse sips output
 	lines := strings.Split(string(output), "\n")
 	var width, height string
-	
+
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "pixelWidth:") {

@@ -56,7 +56,7 @@ func (t *ListSchemes) InputSchema() map[string]interface{} {
 
 func (t *ListSchemes) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
 	var p types.SchemesListParams
-	
+
 	// Parse parameters from args
 	if projectPath, exists := args["project_path"]; exists {
 		if str, ok := projectPath.(string); ok {
@@ -191,7 +191,7 @@ func (t *ListSchemes) parseSchemesFromOutput(output string) []string {
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		
+
 		if strings.Contains(line, "Schemes:") {
 			inSchemesSection = true
 			continue
@@ -282,7 +282,7 @@ func (t *ListSchemes) parseTargetsFromOutput(output string) []string {
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		
+
 		if strings.Contains(line, "Targets:") {
 			inTargetsSection = true
 			continue
@@ -379,4 +379,3 @@ func (t *ListSchemes) findProjectInPath(searchPath string) (workspace string, pr
 
 	return workspace, project, nil
 }
-

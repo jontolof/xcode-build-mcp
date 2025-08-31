@@ -19,22 +19,22 @@ func NewParser() *Parser {
 // Regular expressions for parsing xcodebuild output
 var (
 	// Build errors and warnings
-	errorRegex   = regexp.MustCompile(`^(.+?):(\d+):(\d+):\s*(error|warning):\s*(.+)$`)
-	errorRegex2  = regexp.MustCompile(`^(.+?):\s*(error|warning):\s*(.+)$`)
-	
+	errorRegex  = regexp.MustCompile(`^(.+?):(\d+):(\d+):\s*(error|warning):\s*(.+)$`)
+	errorRegex2 = regexp.MustCompile(`^(.+?):\s*(error|warning):\s*(.+)$`)
+
 	// Build success/failure
 	buildSuccessRegex = regexp.MustCompile(`\*\* BUILD SUCCEEDED \*\*`)
 	buildFailedRegex  = regexp.MustCompile(`\*\* BUILD FAILED \*\*`)
-	
+
 	// Test results
 	testSuccessRegex = regexp.MustCompile(`\*\* TEST SUCCEEDED \*\*`)
 	testFailedRegex  = regexp.MustCompile(`\*\* TEST FAILED \*\*`)
 	testCaseRegex    = regexp.MustCompile(`Test Case '(.+?)' (passed|failed|started) \((\d+\.\d+) seconds\)`)
-	
+
 	// Archive/export paths
 	archiveRegex = regexp.MustCompile(`Archive path: (.+\.xcarchive)`)
 	exportRegex  = regexp.MustCompile(`Export path: (.+)`)
-	
+
 	// Clean results
 	cleanSuccessRegex = regexp.MustCompile(`\*\* CLEAN SUCCEEDED \*\*`)
 	cleanFailedRegex  = regexp.MustCompile(`\*\* CLEAN FAILED \*\*`)
@@ -42,26 +42,26 @@ var (
 
 func (p *Parser) ParseBuildOutput(output string) *types.BuildResult {
 	result := &types.BuildResult{
-		Output:    output,
-		Errors:    []types.BuildError{},
-		Warnings:  []types.BuildWarning{},
+		Output:        output,
+		Errors:        []types.BuildError{},
+		Warnings:      []types.BuildWarning{},
 		ArtifactPaths: []string{},
 	}
-	
+
 	scanner := bufio.NewScanner(strings.NewReader(output))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
 			continue
 		}
-		
+
 		// Check for build success/failure
 		if buildSuccessRegex.MatchString(line) {
 			result.Success = true
 		} else if buildFailedRegex.MatchString(line) {
 			result.Success = false
 		}
-		
+
 		// Parse errors and warnings
 		if matches := errorRegex.FindStringSubmatch(line); matches != nil {
 			file := matches[1]
@@ -69,7 +69,7 @@ func (p *Parser) ParseBuildOutput(output string) *types.BuildResult {
 			column, _ := strconv.Atoi(matches[3])
 			severity := matches[4]
 			message := matches[5]
-			
+
 			if severity == "error" {
 				result.Errors = append(result.Errors, types.BuildError{
 					File:     file,
@@ -90,7 +90,7 @@ func (p *Parser) ParseBuildOutput(output string) *types.BuildResult {
 			file := matches[1]
 			severity := matches[2]
 			message := matches[3]
-			
+
 			if severity == "error" {
 				result.Errors = append(result.Errors, types.BuildError{
 					File:     file,
@@ -104,7 +104,7 @@ func (p *Parser) ParseBuildOutput(output string) *types.BuildResult {
 				})
 			}
 		}
-		
+
 		// Parse artifact paths
 		if matches := archiveRegex.FindStringSubmatch(line); matches != nil {
 			result.ArtifactPaths = append(result.ArtifactPaths, matches[1])
@@ -113,7 +113,7 @@ func (p *Parser) ParseBuildOutput(output string) *types.BuildResult {
 			result.ArtifactPaths = append(result.ArtifactPaths, matches[1])
 		}
 	}
-	
+
 	return result
 }
 
@@ -121,33 +121,33 @@ func (p *Parser) ParseTestOutput(output string) *types.TestResult {
 	result := &types.TestResult{
 		Output: output,
 		TestSummary: types.TestSummary{
-			TestResults: []types.TestCase{},
+			TestResults:        []types.TestCase{},
 			FailedTestsDetails: []types.TestCase{},
 		},
 	}
-	
+
 	var currentTest *types.TestCase
-	
+
 	scanner := bufio.NewScanner(strings.NewReader(output))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
 			continue
 		}
-		
+
 		// Check for test success/failure
 		if testSuccessRegex.MatchString(line) {
 			result.Success = true
 		} else if testFailedRegex.MatchString(line) {
 			result.Success = false
 		}
-		
+
 		// Parse test cases
 		if matches := testCaseRegex.FindStringSubmatch(line); matches != nil {
 			testName := matches[1]
 			status := matches[2]
 			duration, _ := strconv.ParseFloat(matches[3], 64)
-			
+
 			// Extract class and method names
 			parts := strings.Split(testName, ".")
 			className := ""
@@ -156,14 +156,14 @@ func (p *Parser) ParseTestOutput(output string) *types.TestResult {
 				className = strings.Join(parts[:len(parts)-1], ".")
 				methodName = parts[len(parts)-1]
 			}
-			
+
 			testCase := types.TestCase{
 				Name:      methodName,
 				ClassName: className,
 				Status:    status,
 				Duration:  time.Duration(duration * float64(time.Second)),
 			}
-			
+
 			if status == "started" {
 				currentTest = &testCase
 			} else {
@@ -173,10 +173,10 @@ func (p *Parser) ParseTestOutput(output string) *types.TestResult {
 					testCase = *currentTest
 					currentTest = nil
 				}
-				
+
 				result.TestSummary.TestResults = append(result.TestSummary.TestResults, testCase)
 				result.TestSummary.TotalTests++
-				
+
 				switch status {
 				case "passed":
 					result.TestSummary.PassedTests++
@@ -187,7 +187,7 @@ func (p *Parser) ParseTestOutput(output string) *types.TestResult {
 			}
 		}
 	}
-	
+
 	return result
 }
 
@@ -196,21 +196,21 @@ func (p *Parser) ParseCleanOutput(output string) *types.CleanResult {
 		Output:       output,
 		CleanedPaths: []string{},
 	}
-	
+
 	scanner := bufio.NewScanner(strings.NewReader(output))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
 			continue
 		}
-		
+
 		// Check for clean success/failure
 		if cleanSuccessRegex.MatchString(line) {
 			result.Success = true
 		} else if cleanFailedRegex.MatchString(line) {
 			result.Success = false
 		}
-		
+
 		// Parse cleaned paths (simple heuristic - lines starting with "Removed" or "Cleaning")
 		if strings.HasPrefix(line, "Removed ") || strings.HasPrefix(line, "Cleaning ") {
 			// Extract path from the line
@@ -223,31 +223,31 @@ func (p *Parser) ParseCleanOutput(output string) *types.CleanResult {
 			}
 		}
 	}
-	
+
 	return result
 }
 
 func (p *Parser) ExtractBuildSettings(output string) map[string]interface{} {
 	settings := make(map[string]interface{})
-	
+
 	// Look for build settings in the output
 	scanner := bufio.NewScanner(strings.NewReader(output))
 	inBuildSettings := false
-	
+
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		
+
 		if strings.Contains(line, "Build settings from command line:") {
 			inBuildSettings = true
 			continue
 		}
-		
+
 		if inBuildSettings {
 			// Stop parsing when we hit a new section
 			if strings.HasPrefix(line, "===") || strings.HasPrefix(line, "***") {
 				break
 			}
-			
+
 			// Parse "KEY = value" format
 			if strings.Contains(line, " = ") {
 				parts := strings.SplitN(line, " = ", 2)
@@ -259,7 +259,7 @@ func (p *Parser) ExtractBuildSettings(output string) map[string]interface{} {
 			}
 		}
 	}
-	
+
 	return settings
 }
 
@@ -277,15 +277,15 @@ func (p *Parser) IsSuccess(output string, commandType string) bool {
 
 func (p *Parser) ExtractErrors(output string) []types.BuildError {
 	var errors []types.BuildError
-	
+
 	scanner := bufio.NewScanner(strings.NewReader(output))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		
+
 		if matches := errorRegex.FindStringSubmatch(line); matches != nil {
 			lineNum, _ := strconv.Atoi(matches[2])
 			column, _ := strconv.Atoi(matches[3])
-			
+
 			if matches[4] == "error" {
 				errors = append(errors, types.BuildError{
 					File:     matches[1],
@@ -305,22 +305,22 @@ func (p *Parser) ExtractErrors(output string) []types.BuildError {
 			}
 		}
 	}
-	
+
 	return errors
 }
 
 func (p *Parser) ExtractWarnings(output string) []types.BuildWarning {
 	var warnings []types.BuildWarning
-	
+
 	scanner := bufio.NewScanner(strings.NewReader(output))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		
+
 		if matches := errorRegex.FindStringSubmatch(line); matches != nil {
 			if matches[4] == "warning" {
 				lineNum, _ := strconv.Atoi(matches[2])
 				column, _ := strconv.Atoi(matches[3])
-				
+
 				warnings = append(warnings, types.BuildWarning{
 					File:    matches[1],
 					Line:    lineNum,
@@ -337,25 +337,25 @@ func (p *Parser) ExtractWarnings(output string) []types.BuildWarning {
 			}
 		}
 	}
-	
+
 	return warnings
 }
 
 func (p *Parser) ParseSchemes(output string) []string {
 	var schemes []string
-	
+
 	scanner := bufio.NewScanner(strings.NewReader(output))
 	inSchemesSection := false
-	
+
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		
+
 		// Look for the schemes section
 		if strings.Contains(line, "Schemes:") {
 			inSchemesSection = true
 			continue
 		}
-		
+
 		// Stop when we hit another section
 		if inSchemesSection && (strings.Contains(line, "Targets:") || strings.Contains(line, "Build Configurations:") || line == "") {
 			if strings.Contains(line, "Targets:") || strings.Contains(line, "Build Configurations:") {
@@ -363,7 +363,7 @@ func (p *Parser) ParseSchemes(output string) []string {
 			}
 			continue
 		}
-		
+
 		// Extract scheme names (they're typically indented)
 		if inSchemesSection && strings.HasPrefix(line, "    ") {
 			scheme := strings.TrimSpace(line)
@@ -372,25 +372,25 @@ func (p *Parser) ParseSchemes(output string) []string {
 			}
 		}
 	}
-	
+
 	return schemes
 }
 
 func (p *Parser) ParseTargets(output string) []string {
 	var targets []string
-	
+
 	scanner := bufio.NewScanner(strings.NewReader(output))
 	inTargetsSection := false
-	
+
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		
+
 		// Look for the targets section
 		if strings.Contains(line, "Targets:") {
 			inTargetsSection = true
 			continue
 		}
-		
+
 		// Stop when we hit another section
 		if inTargetsSection && (strings.Contains(line, "Build Configurations:") || strings.Contains(line, "Schemes:") || line == "") {
 			if strings.Contains(line, "Build Configurations:") || strings.Contains(line, "Schemes:") {
@@ -398,7 +398,7 @@ func (p *Parser) ParseTargets(output string) []string {
 			}
 			continue
 		}
-		
+
 		// Extract target names (they're typically indented)
 		if inTargetsSection && strings.HasPrefix(line, "    ") {
 			target := strings.TrimSpace(line)
@@ -407,6 +407,6 @@ func (p *Parser) ParseTargets(output string) []string {
 			}
 		}
 	}
-	
+
 	return targets
 }

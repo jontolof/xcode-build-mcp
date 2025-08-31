@@ -94,7 +94,7 @@ func TestTestParams_JSON(t *testing.T) {
 		t.Errorf("Coverage mismatch: got %v, want %v", decoded.Coverage, params.Coverage)
 	}
 	if len(decoded.OnlyTesting) != len(params.OnlyTesting) {
-		t.Errorf("OnlyTesting length mismatch: got %d, want %d", 
+		t.Errorf("OnlyTesting length mismatch: got %d, want %d",
 			len(decoded.OnlyTesting), len(params.OnlyTesting))
 	}
 }
@@ -130,14 +130,14 @@ func TestTestResult_JSON(t *testing.T) {
 		t.Errorf("Success mismatch: got %v, want %v", decoded.Success, result.Success)
 	}
 	if decoded.TestSummary.TotalTests != result.TestSummary.TotalTests {
-		t.Errorf("TotalTests mismatch: got %d, want %d", 
+		t.Errorf("TotalTests mismatch: got %d, want %d",
 			decoded.TestSummary.TotalTests, result.TestSummary.TotalTests)
 	}
 	if decoded.Coverage == nil {
 		t.Fatal("Coverage should not be nil")
 	}
 	if decoded.Coverage.LineCoverage != result.Coverage.LineCoverage {
-		t.Errorf("LineCoverage mismatch: got %f, want %f", 
+		t.Errorf("LineCoverage mismatch: got %f, want %f",
 			decoded.Coverage.LineCoverage, result.Coverage.LineCoverage)
 	}
 }
@@ -207,11 +207,11 @@ func TestProjectInfo_JSON(t *testing.T) {
 		t.Errorf("Type mismatch: got %s, want %s", decoded.Type, project.Type)
 	}
 	if len(decoded.Schemes) != len(project.Schemes) {
-		t.Errorf("Schemes length mismatch: got %d, want %d", 
+		t.Errorf("Schemes length mismatch: got %d, want %d",
 			len(decoded.Schemes), len(project.Schemes))
 	}
 	if len(decoded.Targets) != len(project.Targets) {
-		t.Errorf("Targets length mismatch: got %d, want %d", 
+		t.Errorf("Targets length mismatch: got %d, want %d",
 			len(decoded.Targets), len(project.Targets))
 	}
 }
@@ -242,7 +242,7 @@ func TestAppInstallResult_JSON(t *testing.T) {
 		t.Errorf("BundleID mismatch: got %s, want %s", decoded.BundleID, result.BundleID)
 	}
 	if decoded.InstalledPath != result.InstalledPath {
-		t.Errorf("InstalledPath mismatch: got %s, want %s", 
+		t.Errorf("InstalledPath mismatch: got %s, want %s",
 			decoded.InstalledPath, result.InstalledPath)
 	}
 }

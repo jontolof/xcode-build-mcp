@@ -30,7 +30,7 @@ func main() {
 	}
 
 	logger := setupLogger(*logLevel)
-	
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -60,14 +60,14 @@ func main() {
 
 func setupLogger(level string) *log.Logger {
 	logger := log.New(os.Stderr, "[xcode-build-mcp] ", log.LstdFlags)
-	
+
 	switch level {
 	case "debug":
 		logger.SetFlags(log.LstdFlags | log.Lshortfile)
 	case "error":
 		logger.SetOutput(&errorOnlyWriter{os.Stderr})
 	}
-	
+
 	return logger
 }
 

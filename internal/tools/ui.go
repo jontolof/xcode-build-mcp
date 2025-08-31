@@ -63,7 +63,7 @@ func (t *DescribeUI) Execute(ctx context.Context, args map[string]interface{}) (
 	}
 
 	var p types.UIDescribeParams
-	
+
 	// Parse parameters from args
 	if udid, exists := args["udid"]; exists {
 		if str, ok := udid.(string); ok {
@@ -146,7 +146,7 @@ func (t *DescribeUI) describeUI(ctx context.Context, params *types.UIDescribePar
 	}
 
 	// Note: simctl doesn't have direct UI hierarchy commands, so we use a mock implementation
-	
+
 	// Check if the device is booted first
 	if err := t.ensureDeviceBooted(ctx, params.UDID); err != nil {
 		return &types.UIDescribeResult{Success: false}, fmt.Errorf("device not booted: %w", err)
@@ -353,4 +353,3 @@ func (t *DescribeUI) countElementsInText(textData string) int {
 	}
 	return count
 }
-

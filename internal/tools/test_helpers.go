@@ -35,18 +35,18 @@ type mockExecutor struct {
 
 func (e *mockExecutor) Execute(ctx context.Context, args []string) (*xcode.CommandResult, error) {
 	e.callCount++
-	
+
 	if len(e.results) > 0 {
 		if e.callCount <= len(e.results) {
 			return e.results[e.callCount-1], nil
 		}
 		return e.results[len(e.results)-1], nil
 	}
-	
+
 	if e.result != nil {
 		return e.result, nil
 	}
-	
+
 	// Default success result
 	return &xcode.CommandResult{
 		ExitCode: 0,
@@ -62,7 +62,7 @@ func (e *mockExecutor) FindXcodeCommand() (string, error) {
 
 func (e *mockExecutor) BuildXcodeArgs(command string, params map[string]interface{}) ([]string, error) {
 	args := []string{command}
-	
+
 	if workspace, ok := params["workspace"]; ok {
 		args = append(args, "-workspace", workspace.(string))
 	}
@@ -75,7 +75,7 @@ func (e *mockExecutor) BuildXcodeArgs(command string, params map[string]interfac
 	if destination, ok := params["destination"]; ok {
 		args = append(args, "-destination", destination.(string))
 	}
-	
+
 	return args, nil
 }
 

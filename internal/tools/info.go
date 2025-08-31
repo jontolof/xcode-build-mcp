@@ -60,7 +60,7 @@ func (t *GetAppInfo) InputSchema() map[string]interface{} {
 
 func (t *GetAppInfo) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
 	var p types.AppInfoParams
-	
+
 	// Parse parameters from args
 	if appPath, exists := args["app_path"]; exists {
 		if str, ok := appPath.(string); ok {

@@ -53,10 +53,10 @@ func TestUIInteract_Execute_ValidParams(t *testing.T) {
 	}
 
 	args := map[string]interface{}{
-		"udid": params.UDID,
+		"udid":   params.UDID,
 		"action": params.Action,
-		"x": params.Coordinates[0],
-		"y": params.Coordinates[1],
+		"x":      params.Coordinates[0],
+		"y":      params.Coordinates[1],
 	}
 
 	result, err := tool.Execute(ctx, args)
@@ -93,7 +93,7 @@ func TestUIInteract_Execute_DefaultTimeout(t *testing.T) {
 	}
 
 	args := map[string]interface{}{
-		"udid": params.UDID,
+		"udid":   params.UDID,
 		"action": params.Action,
 	}
 
@@ -125,7 +125,7 @@ func TestUIInteract_GetSwipeDirection(t *testing.T) {
 
 	tests := []struct {
 		startX, startY, endX, endY float64
-		expected               string
+		expected                   string
 	}{
 		{100, 100, 200, 100, "right"}, // Horizontal right
 		{200, 100, 100, 100, "left"},  // Horizontal left
@@ -139,7 +139,7 @@ func TestUIInteract_GetSwipeDirection(t *testing.T) {
 		t.Run(tt.expected, func(t *testing.T) {
 			direction := tool.getSwipeDirection(tt.startX, tt.startY, tt.endX, tt.endY)
 			if direction != tt.expected {
-				t.Errorf("getSwipeDirection(%.1f,%.1f,%.1f,%.1f) = %s, want %s", 
+				t.Errorf("getSwipeDirection(%.1f,%.1f,%.1f,%.1f) = %s, want %s",
 					tt.startX, tt.startY, tt.endX, tt.endY, direction, tt.expected)
 			}
 		})
@@ -157,8 +157,9 @@ func TestUIInteract_PerformTap_Coordinates(t *testing.T) {
 	}
 
 	// This will fail because device doesn't exist, but we can test parameter validation
-	result, err := tool.performUIInteraction(ctx, params); _ = result
-	
+	result, err := tool.performUIInteraction(ctx, params)
+	_ = result
+
 	// Either we get a result or an error, both are acceptable for testing
 	if result != nil {
 		if result.Output == "" {
@@ -183,8 +184,9 @@ func TestUIInteract_PerformTap_Target(t *testing.T) {
 		Target: "Submit Button",
 	}
 
-	result, err := tool.performUIInteraction(ctx, params); _ = result
-	
+	result, err := tool.performUIInteraction(ctx, params)
+	_ = result
+
 	// Target-based tap should work even without real device (it's simulated)
 	if result != nil {
 		if !strings.Contains(result.Output, "Submit Button") {
@@ -206,8 +208,9 @@ func TestUIInteract_PerformTap_InvalidParams(t *testing.T) {
 		Action: "tap",
 	}
 
-	result, err := tool.performUIInteraction(ctx, params); _ = result
-	
+	result, err := tool.performUIInteraction(ctx, params)
+	_ = result
+
 	if err == nil {
 		t.Error("Expected error for tap without coordinates or target")
 	}
@@ -227,8 +230,9 @@ func TestUIInteract_PerformSwipe_ValidParams(t *testing.T) {
 		Coordinates: []float64{100, 100, 200, 200}, // start_x, start_y, end_x, end_y
 	}
 
-	result, err := tool.performUIInteraction(ctx, params); _ = result
-	
+	result, err := tool.performUIInteraction(ctx, params)
+	_ = result
+
 	if result != nil {
 		if !strings.Contains(result.Output, "Swiped") {
 			t.Error("Expected output to contain 'Swiped'")
@@ -250,12 +254,13 @@ func TestUIInteract_PerformSwipe_InvalidParams(t *testing.T) {
 		Coordinates: []float64{100, 100}, // Only start coordinates
 	}
 
-	result, err := tool.performUIInteraction(ctx, params); _ = result
-	
+	result, err := tool.performUIInteraction(ctx, params)
+	_ = result
+
 	if err == nil {
 		t.Error("Expected error for swipe with insufficient coordinates")
 	}
-	
+
 	// Accept either coordinate error or device error
 	if err != nil && !strings.Contains(err.Error(), "4 coordinates") && !strings.Contains(err.Error(), "device") {
 		t.Errorf("Expected error about 4 coordinates or device, got: %v", err)
@@ -272,8 +277,9 @@ func TestUIInteract_PerformType_ValidParams(t *testing.T) {
 		Text:   "Hello World",
 	}
 
-	result, err := tool.performUIInteraction(ctx, params); _ = result
-	
+	result, err := tool.performUIInteraction(ctx, params)
+	_ = result
+
 	if result != nil {
 		if !strings.Contains(result.Output, "Hello World") {
 			t.Error("Expected output to contain typed text")
@@ -295,12 +301,13 @@ func TestUIInteract_PerformType_InvalidParams(t *testing.T) {
 		Text:   "",
 	}
 
-	result, err := tool.performUIInteraction(ctx, params); _ = result
-	
+	result, err := tool.performUIInteraction(ctx, params)
+	_ = result
+
 	if err == nil {
 		t.Error("Expected error for type without text")
 	}
-	
+
 	// Accept either text error or device error
 	if err != nil && !strings.Contains(err.Error(), "text is required") && !strings.Contains(err.Error(), "device") {
 		t.Errorf("Expected error about missing text or device, got: %v", err)
@@ -319,8 +326,9 @@ func TestUIInteract_PerformRotate_ValidParams(t *testing.T) {
 		},
 	}
 
-	result, err := tool.performUIInteraction(ctx, params); _ = result
-	
+	result, err := tool.performUIInteraction(ctx, params)
+	_ = result
+
 	if result != nil {
 		if !strings.Contains(result.Output, "landscape") {
 			t.Error("Expected output to contain orientation")
@@ -359,13 +367,14 @@ func TestUIInteract_SupportedActions(t *testing.T) {
 				params.Parameters = map[string]interface{}{"orientation": "portrait"}
 			}
 
-			result, err := tool.performUIInteraction(ctx, params); _ = result
-			
+			result, err := tool.performUIInteraction(ctx, params)
+			_ = result
+
 			// Should not get "unsupported action" error
 			if err != nil && strings.Contains(err.Error(), "unsupported action") {
 				t.Errorf("Action %s should be supported, got: %v", action, err)
 			}
-			
+
 			// Should get some kind of result
 			if result == nil && err == nil {
 				t.Errorf("Action %s should return result or error", action)
@@ -383,12 +392,13 @@ func TestUIInteract_UnsupportedAction(t *testing.T) {
 		Action: "unsupported_action",
 	}
 
-	result, err := tool.performUIInteraction(ctx, params); _ = result
-	
+	result, err := tool.performUIInteraction(ctx, params)
+	_ = result
+
 	if err == nil {
 		t.Error("Expected error for unsupported action")
 	}
-	
+
 	// Accept either unsupported action error or device error
 	if err != nil && !strings.Contains(err.Error(), "unsupported action") && !strings.Contains(err.Error(), "device") {
 		t.Errorf("Expected 'unsupported action' or device error, got: %v", err)
@@ -404,12 +414,13 @@ func TestUIInteract_MissingAction(t *testing.T) {
 		Action: "",
 	}
 
-	result, err := tool.performUIInteraction(ctx, params); _ = result
-	
+	result, err := tool.performUIInteraction(ctx, params)
+	_ = result
+
 	if err == nil {
 		t.Error("Expected error for missing action")
 	}
-	
+
 	if !strings.Contains(err.Error(), "action is required") {
 		t.Errorf("Expected 'action is required' error, got: %v", err)
 	}
@@ -424,12 +435,13 @@ func TestUIInteract_MissingUDID(t *testing.T) {
 		Action: "home",
 	}
 
-	result, err := tool.performUIInteraction(ctx, params); _ = result
-	
+	result, err := tool.performUIInteraction(ctx, params)
+	_ = result
+
 	if err == nil {
 		t.Error("Expected error for missing UDID")
 	}
-	
+
 	if !strings.Contains(err.Error(), "UDID is required") {
 		t.Errorf("Expected 'UDID is required' error, got: %v", err)
 	}

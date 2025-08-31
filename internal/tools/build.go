@@ -32,7 +32,7 @@ func NewXcodeBuildTool(executor *xcode.Executor, parser *xcode.Parser, logger co
 			"description": "Name of the .xcworkspace file (relative to project_path)",
 		},
 		"project": map[string]interface{}{
-			"type":        "string", 
+			"type":        "string",
 			"description": "Name of the .xcodeproj file (relative to project_path)",
 		},
 		"scheme": map[string]interface{}{
@@ -48,7 +48,7 @@ func NewXcodeBuildTool(executor *xcode.Executor, parser *xcode.Parser, logger co
 			"description": "Build configuration (Debug, Release, etc.)",
 		},
 		"sdk": map[string]interface{}{
-			"type":        "string", 
+			"type":        "string",
 			"description": "SDK to build against (iphoneos, iphonesimulator, macosx, etc.)",
 		},
 		"destination": map[string]interface{}{
@@ -71,7 +71,7 @@ func NewXcodeBuildTool(executor *xcode.Executor, parser *xcode.Parser, logger co
 			"default":     false,
 		},
 		"archive": map[string]interface{}{
-			"type":        "boolean", 
+			"type":        "boolean",
 			"description": "Create archive instead of regular build",
 			"default":     false,
 		},
@@ -292,10 +292,10 @@ func (t *XcodeBuildTool) formatBuildResponse(result *types.BuildResult, filter *
 	// Add filtering statistics
 	stats := filter.GetStats()
 	response["filtering_stats"] = map[string]interface{}{
-		"total_lines":         stats.TotalLines,
-		"filtered_lines":      stats.FilteredLines,
-		"kept_lines":         stats.KeptLines,
-		"reduction_percent":   filter.ReductionPercentage(),
+		"total_lines":       stats.TotalLines,
+		"filtered_lines":    stats.FilteredLines,
+		"kept_lines":        stats.KeptLines,
+		"reduction_percent": filter.ReductionPercentage(),
 	}
 
 	// Add errors if any
@@ -332,4 +332,3 @@ func (t *XcodeBuildTool) formatBuildResponse(result *types.BuildResult, filter *
 
 	return string(jsonData), nil
 }
-

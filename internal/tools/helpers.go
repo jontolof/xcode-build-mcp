@@ -75,7 +75,7 @@ func selectBestSimulator(platform string) (*types.SimulatorInfo, error) {
 	// Add timeout to prevent hanging in test environments
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	
+
 	cmd := exec.CommandContext(ctx, "xcrun", "simctl", "list", "devices", "--json")
 	output, err := cmd.Output()
 	if err != nil {

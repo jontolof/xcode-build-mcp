@@ -72,7 +72,7 @@ func (t *CaptureLogs) InputSchema() map[string]interface{} {
 
 func (t *CaptureLogs) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
 	var p types.LogCaptureParams
-	
+
 	// Parse parameters from args
 	if udid, exists := args["udid"]; exists {
 		if str, ok := udid.(string); ok {
@@ -156,7 +156,7 @@ func (t *CaptureLogs) Execute(ctx context.Context, args map[string]interface{}) 
 func (t *CaptureLogs) captureLogs(ctx context.Context, params *types.LogCaptureParams) (*types.LogCaptureResult, error) {
 	// Build log command arguments
 	args := []string{"simctl", "spawn"}
-	
+
 	if params.UDID != "" {
 		args = append(args, params.UDID)
 	} else {
@@ -292,5 +292,3 @@ func (t *CaptureLogs) parseLogLine(line string, pattern *regexp.Regexp) *types.L
 		Message:   strings.TrimSpace(message),
 	}
 }
-
-

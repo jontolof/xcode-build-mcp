@@ -7,24 +7,24 @@ import (
 type ErrorCode string
 
 const (
-	ErrCodeInvalidParams    ErrorCode = "INVALID_PARAMS"
-	ErrCodeProjectNotFound  ErrorCode = "PROJECT_NOT_FOUND"
-	ErrCodeSchemeNotFound   ErrorCode = "SCHEME_NOT_FOUND"
-	ErrCodeBuildFailed      ErrorCode = "BUILD_FAILED"
-	ErrCodeTestFailed       ErrorCode = "TEST_FAILED"
+	ErrCodeInvalidParams     ErrorCode = "INVALID_PARAMS"
+	ErrCodeProjectNotFound   ErrorCode = "PROJECT_NOT_FOUND"
+	ErrCodeSchemeNotFound    ErrorCode = "SCHEME_NOT_FOUND"
+	ErrCodeBuildFailed       ErrorCode = "BUILD_FAILED"
+	ErrCodeTestFailed        ErrorCode = "TEST_FAILED"
 	ErrCodeSimulatorNotFound ErrorCode = "SIMULATOR_NOT_FOUND"
-	ErrCodeAppNotFound      ErrorCode = "APP_NOT_FOUND"
-	ErrCodeInstallFailed    ErrorCode = "INSTALL_FAILED"
-	ErrCodeLaunchFailed     ErrorCode = "LAUNCH_FAILED"
-	ErrCodeTimeout          ErrorCode = "TIMEOUT"
-	ErrCodeInternal         ErrorCode = "INTERNAL_ERROR"
+	ErrCodeAppNotFound       ErrorCode = "APP_NOT_FOUND"
+	ErrCodeInstallFailed     ErrorCode = "INSTALL_FAILED"
+	ErrCodeLaunchFailed      ErrorCode = "LAUNCH_FAILED"
+	ErrCodeTimeout           ErrorCode = "TIMEOUT"
+	ErrCodeInternal          ErrorCode = "INTERNAL_ERROR"
 )
 
 type XcodeError struct {
-	Code     ErrorCode              `json:"code"`
-	Message  string                 `json:"message"`
-	Details  map[string]interface{} `json:"details,omitempty"`
-	Cause    error                  `json:"cause,omitempty"`
+	Code    ErrorCode              `json:"code"`
+	Message string                 `json:"message"`
+	Details map[string]interface{} `json:"details,omitempty"`
+	Cause   error                  `json:"cause,omitempty"`
 }
 
 func (e *XcodeError) Error() string {
@@ -60,13 +60,13 @@ func WrapError(err error, code ErrorCode, message string) *XcodeError {
 }
 
 type BuildError struct {
-	File        string `json:"file"`
-	Line        int    `json:"line,omitempty"`
-	Column      int    `json:"column,omitempty"`
-	Message     string `json:"message"`
-	Severity    string `json:"severity"`
-	Category    string `json:"category,omitempty"`
-	Code        string `json:"code,omitempty"`
+	File     string `json:"file"`
+	Line     int    `json:"line,omitempty"`
+	Column   int    `json:"column,omitempty"`
+	Message  string `json:"message"`
+	Severity string `json:"severity"`
+	Category string `json:"category,omitempty"`
+	Code     string `json:"code,omitempty"`
 }
 
 func (e *BuildError) Error() string {
@@ -77,12 +77,12 @@ func (e *BuildError) Error() string {
 }
 
 type BuildWarning struct {
-	File        string `json:"file"`
-	Line        int    `json:"line,omitempty"`
-	Column      int    `json:"column,omitempty"`
-	Message     string `json:"message"`
-	Category    string `json:"category,omitempty"`
-	Code        string `json:"code,omitempty"`
+	File     string `json:"file"`
+	Line     int    `json:"line,omitempty"`
+	Column   int    `json:"column,omitempty"`
+	Message  string `json:"message"`
+	Category string `json:"category,omitempty"`
+	Code     string `json:"code,omitempty"`
 }
 
 func (w *BuildWarning) Error() string {

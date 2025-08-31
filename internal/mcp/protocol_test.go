@@ -29,7 +29,7 @@ func TestRequest_JSON(t *testing.T) {
 	if decoded.Method != req.Method {
 		t.Errorf("Method mismatch: got %s, want %s", decoded.Method, req.Method)
 	}
-	
+
 	// Compare IDs as floats since JSON unmarshaling converts numbers to float64
 	if decodedID, ok := decoded.ID.(float64); !ok || int(decodedID) != req.ID.(int) {
 		t.Errorf("ID mismatch: got %v, want %v", decoded.ID, req.ID)
@@ -129,7 +129,7 @@ func TestInitializeResult(t *testing.T) {
 	result := InitializeResult{
 		ProtocolVersion: "1.0.0",
 		Capabilities: ServerCapabilities{
-			Tools: &ToolsCapability{},
+			Tools:   &ToolsCapability{},
 			Prompts: &PromptsCapability{},
 		},
 		ServerInfo: ServerInfo{

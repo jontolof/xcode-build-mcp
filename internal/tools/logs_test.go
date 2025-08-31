@@ -44,8 +44,8 @@ func TestCaptureLogs_Execute_ValidParams(t *testing.T) {
 	ctx := context.Background()
 
 	args := map[string]interface{}{
-		"udid": "test-udid",
-		"max_lines": 10,
+		"udid":         "test-udid",
+		"max_lines":    10,
 		"timeout_secs": 1, // Short timeout for test
 	}
 
@@ -186,7 +186,7 @@ func TestCaptureLogs_SelectBestSimulator(t *testing.T) {
 	// This test checks the function signature and error handling
 	// It will likely fail in CI without simulators, which is expected
 	simulator, err := selectBestSimulator("")
-	
+
 	// Either we get a simulator or an error, both are valid outcomes
 	if simulator != nil {
 		if simulator.UDID == "" {
@@ -216,13 +216,13 @@ func TestCaptureLogs_ParameterValidation(t *testing.T) {
 		{
 			name: "Valid full params",
 			params: types.LogCaptureParams{
-				UDID:         "test-udid",
-				BundleID:     "com.example.app",
-				LogLevel:     "error",
-				FilterText:   "test",
-				FollowMode:   true,
-				MaxLines:     50,
-				TimeoutSecs:  60,
+				UDID:        "test-udid",
+				BundleID:    "com.example.app",
+				LogLevel:    "error",
+				FilterText:  "test",
+				FollowMode:  true,
+				MaxLines:    50,
+				TimeoutSecs: 60,
 			},
 			valid: true,
 		},

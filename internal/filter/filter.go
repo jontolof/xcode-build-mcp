@@ -36,11 +36,11 @@ type Filter struct {
 }
 
 type FilterStats struct {
-	TotalLines    int
-	FilteredLines int
-	KeptLines     int
+	TotalLines         int
+	FilteredLines      int
+	KeptLines          int
 	SummarizedSections int
-	RulesApplied  map[string]int
+	RulesApplied       map[string]int
 }
 
 func NewFilter(mode OutputMode) *Filter {
@@ -66,7 +66,7 @@ func (f *Filter) Filter(output string) string {
 
 	var result strings.Builder
 	scanner := bufio.NewScanner(strings.NewReader(output))
-	
+
 	// Track context for better filtering decisions
 	context := &FilterContext{
 		InBuildPhase:     false,
@@ -78,11 +78,11 @@ func (f *Filter) Filter(output string) string {
 
 	// Set line limits based on mode to prevent token overflow
 	maxLines := f.getMaxLinesForMode()
-	
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		f.stats.TotalLines++
-		
+
 		// Hard limit to prevent token overflow
 		if f.stats.KeptLines >= maxLines {
 			result.WriteString("\n... (output truncated at ")
@@ -90,13 +90,13 @@ func (f *Filter) Filter(output string) string {
 			result.WriteString(" mode limit)\n")
 			break
 		}
-		
+
 		// Update context
 		f.updateContext(line, context)
-		
+
 		// Apply filtering rules
 		action := f.evaluateLine(line, context)
-		
+
 		switch action {
 		case Keep:
 			// Additional length check for very long lines
@@ -123,7 +123,7 @@ func (f *Filter) Filter(output string) string {
 func (f *Filter) getMaxLinesForMode() int {
 	switch f.mode {
 	case Minimal:
-		return 20  // ~500 tokens max
+		return 20 // ~500 tokens max
 	case Standard:
 		return 200 // ~5000 tokens max
 	case Verbose:
@@ -138,40 +138,40 @@ func (f *Filter) filterVerbose(output string) string {
 	scanner := bufio.NewScanner(strings.NewReader(output))
 	lineCount := 0
 	maxLines := 800 // ~20000 tokens
-	
+
 	for scanner.Scan() {
 		line := scanner.Text()
-		
+
 		// Check limit before adding line
 		if lineCount >= maxLines {
 			result.WriteString("\n... (output truncated at verbose mode limit)\n")
 			break
 		}
-		
+
 		// Skip only the most egregious noise even in verbose mode
-		if strings.Contains(line, "-Xfrontend") || 
-		   strings.Contains(line, "-Xcc") ||
-		   strings.Contains(line, "-Xlinker") ||
-		   strings.Contains(line, "ClangStatCache") {
+		if strings.Contains(line, "-Xfrontend") ||
+			strings.Contains(line, "-Xcc") ||
+			strings.Contains(line, "-Xlinker") ||
+			strings.Contains(line, "ClangStatCache") {
 			continue
 		}
-		
+
 		// Truncate very long lines
 		if len(line) > 1000 {
 			line = line[:1000] + "..."
 		}
-		
+
 		result.WriteString(line)
 		result.WriteString("\n")
 		lineCount++
 	}
-	
+
 	return result.String()
 }
 
 func (f *Filter) evaluateLine(line string, context *FilterContext) FilterAction {
 	cleanLine := strings.TrimSpace(line)
-	
+
 	// Empty lines - remove in minimal mode, keep sparingly in other modes
 	if cleanLine == "" {
 		if f.mode == Minimal {
@@ -185,7 +185,7 @@ func (f *Filter) evaluateLine(line string, context *FilterContext) FilterAction 
 		return Keep
 	}
 	context.LastLineWasEmpty = false
-	
+
 	// Always keep critical information based on mode
 	switch f.mode {
 	case Minimal:
@@ -203,7 +203,7 @@ func (f *Filter) evaluateMinimalMode(line string, context *FilterContext) Filter
 		f.recordRuleUsage("compilation-noise-removed")
 		return Remove
 	}
-	
+
 	// STRICT WHITELIST for minimal mode - only keep absolutely essential info
 	keepPatterns := []string{
 		"** TEST SUCCEEDED **",
@@ -218,16 +218,16 @@ func (f *Filter) evaluateMinimalMode(line string, context *FilterContext) Filter
 		"Test Suite 'All tests' failed",
 		" tests passed,",
 		" tests failed,",
-		"Executed ",  // Test summary line
+		"Executed ", // Test summary line
 	}
-	
+
 	for _, pattern := range keepPatterns {
 		if strings.Contains(line, pattern) {
 			f.recordRuleUsage("minimal-whitelist-keep")
 			return Keep
 		}
 	}
-	
+
 	// Remove everything else in minimal mode
 	f.recordRuleUsage("minimal-filter")
 	return Remove
@@ -239,57 +239,57 @@ func (f *Filter) evaluateStandardMode(line string, context *FilterContext) Filte
 		f.recordRuleUsage("compilation-noise-removed")
 		return Remove
 	}
-	
+
 	// Remove verbose compilation details
 	if f.isVerboseCompilation(line) {
 		f.recordRuleUsage("compilation-filter")
 		return Remove
 	}
-	
+
 	// Remove framework noise
 	if f.isFrameworkNoise(line) {
 		f.recordRuleUsage("framework-filter")
 		return Remove
 	}
-	
+
 	// Now check what to keep - expanded whitelist for standard mode
-	
+
 	// Keep errors always
 	if f.isError(line) {
 		f.recordRuleUsage("error-keep")
 		return Keep
 	}
-	
+
 	// Keep warnings
 	if f.isWarning(line) {
 		f.recordRuleUsage("warning-keep")
 		return Keep
 	}
-	
+
 	// Keep final build/test/clean results
 	if f.isBuildResult(line) || f.isTestResult(line) || f.isCleanResult(line) {
 		f.recordRuleUsage("result-keep")
 		return Keep
 	}
-	
+
 	// Keep test case details in standard mode
 	if strings.Contains(line, "Test Case '") || strings.Contains(line, "Test Suite '") {
 		f.recordRuleUsage("test-detail-keep")
 		return Keep
 	}
-	
+
 	// Keep simplified progress indicators
 	if strings.Contains(line, "Testing target") || strings.Contains(line, "Running tests") {
 		f.recordRuleUsage("progress-keep")
 		return Keep
 	}
-	
+
 	// Keep important configuration
 	if strings.Contains(line, "scheme:") || strings.Contains(line, "destination:") {
 		f.recordRuleUsage("config-keep")
 		return Keep
 	}
-	
+
 	// Default to remove if not explicitly kept
 	f.recordRuleUsage("standard-filter")
 	return Remove
@@ -297,7 +297,7 @@ func (f *Filter) evaluateStandardMode(line string, context *FilterContext) Filte
 
 func (f *Filter) updateContext(line string, context *FilterContext) {
 	cleanLine := strings.TrimSpace(line)
-	
+
 	// Detect build phases
 	if strings.Contains(cleanLine, "=== BUILD TARGET") {
 		context.InBuildPhase = true
@@ -310,11 +310,11 @@ func (f *Filter) updateContext(line string, context *FilterContext) {
 			}
 		}
 	}
-	
+
 	if strings.Contains(cleanLine, "** BUILD") && (strings.Contains(cleanLine, "SUCCEEDED") || strings.Contains(cleanLine, "FAILED")) {
 		context.InBuildPhase = false
 	}
-	
+
 	// Detect error sections
 	if f.isError(line) {
 		context.InErrorSection = true
@@ -331,7 +331,7 @@ func (f *Filter) isError(line string) bool {
 		"fatal error:",
 		"compilation error:",
 	}
-	
+
 	lowerLine := strings.ToLower(line)
 	for _, pattern := range errorPatterns {
 		if strings.Contains(lowerLine, pattern) {
@@ -346,7 +346,7 @@ func (f *Filter) isWarning(line string) bool {
 		": warning:",
 		"warning: ",
 	}
-	
+
 	lowerLine := strings.ToLower(line)
 	for _, pattern := range warningPatterns {
 		if strings.Contains(lowerLine, pattern) {
@@ -362,7 +362,7 @@ func (f *Filter) isBuildResult(line string) bool {
 		"** BUILD SUCCEEDED **",
 		"** BUILD FAILED **",
 	}
-	
+
 	for _, pattern := range resultPatterns {
 		if strings.Contains(line, pattern) {
 			return true
@@ -376,15 +376,15 @@ func (f *Filter) isTestResult(line string) bool {
 	testPatterns := []string{
 		"** TEST SUCCEEDED **",
 		"** TEST FAILED **",
-		"Test Case '",  // Note the quote - actual test results have quotes
-		"Test Suite '", // Note the quote
-		" passed (",    // Keep for test case results
-		" failed (",    // Keep for test case results
+		"Test Case '",    // Note the quote - actual test results have quotes
+		"Test Suite '",   // Note the quote
+		" passed (",      // Keep for test case results
+		" failed (",      // Keep for test case results
 		" tests passed,", // Summary line
 		" tests failed,", // Summary line
-		"Executed ",     // Test execution summary
+		"Executed ",      // Test execution summary
 	}
-	
+
 	for _, pattern := range testPatterns {
 		if strings.Contains(line, pattern) {
 			return true
@@ -400,7 +400,7 @@ func (f *Filter) isCleanResult(line string) bool {
 		"Removed ",
 		"Cleaning ",
 	}
-	
+
 	for _, pattern := range cleanPatterns {
 		if strings.Contains(line, pattern) {
 			return true
@@ -417,19 +417,19 @@ func (f *Filter) isArtifactPath(line string) bool {
 		"Product Path:",
 		"Exported to:",
 	}
-	
+
 	for _, pattern := range artifactPatterns {
 		if strings.Contains(line, pattern) {
 			return true
 		}
 	}
-	
+
 	// Only match .xcarchive/.ipa at end of lines (actual outputs)
 	if strings.HasSuffix(strings.TrimSpace(line), ".xcarchive") ||
-	   strings.HasSuffix(strings.TrimSpace(line), ".ipa") {
+		strings.HasSuffix(strings.TrimSpace(line), ".ipa") {
 		return true
 	}
-	
+
 	return false
 }
 
@@ -442,7 +442,7 @@ func (f *Filter) isProgressIndicator(line string) bool {
 		"Copying ",
 		"Processing ",
 	}
-	
+
 	trimmed := strings.TrimSpace(line)
 	for _, pattern := range progressPatterns {
 		if strings.HasPrefix(trimmed, pattern) {
@@ -459,7 +459,7 @@ func (f *Filter) isConfigurationInfo(line string) bool {
 		"SDK:",
 		"PLATFORM:",
 	}
-	
+
 	for _, pattern := range configPatterns {
 		if strings.Contains(line, pattern) {
 			return true
@@ -485,14 +485,14 @@ func (f *Filter) isVerboseCompilation(line string) bool {
 		"ProcessInfoPlistFile",
 		"CopySwiftLibs",
 	}
-	
+
 	lowerLine := strings.ToLower(line)
 	for _, pattern := range verbosePatterns {
 		if strings.Contains(lowerLine, strings.ToLower(pattern)) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -504,7 +504,7 @@ func (f *Filter) isFrameworkNoise(line string) bool {
 		"note: Constructing build description",
 		"note: Building targets in parallel",
 	}
-	
+
 	lowerLine := strings.ToLower(line)
 	for _, pattern := range frameworkPatterns {
 		if strings.Contains(lowerLine, strings.ToLower(pattern)) {
@@ -575,7 +575,7 @@ func (f *Filter) isCompilationNoise(line string) bool {
 		"/usr/bin/swift",
 		"DerivedData/",
 	}
-	
+
 	for _, pattern := range noisePatterns {
 		if strings.Contains(line, pattern) {
 			return true

@@ -76,7 +76,7 @@ func (t *ListSimulatorsTool) Execute(ctx context.Context, args map[string]interf
 
 	start := time.Now()
 
-	t.logger.Printf("Listing simulators with filters: platform=%s, device_type=%s, runtime=%s, available=%v, state=%s", 
+	t.logger.Printf("Listing simulators with filters: platform=%s, device_type=%s, runtime=%s, available=%v, state=%s",
 		params.Platform, params.DeviceType, params.Runtime, params.Available, params.State)
 
 	// Execute xcrun simctl list command
@@ -190,7 +190,7 @@ func (t *ListSimulatorsTool) parseSimulatorListOutput(output string) ([]types.Si
 	// Parse each runtime and its devices
 	for runtime, devices := range simctlOutput.Devices {
 		platform := t.extractPlatformFromRuntime(runtime)
-		
+
 		for _, device := range devices {
 			simulator := types.SimulatorInfo{
 				UDID:       device.UDID,

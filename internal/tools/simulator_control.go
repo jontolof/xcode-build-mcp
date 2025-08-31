@@ -129,7 +129,7 @@ func (t *SimulatorControlTool) parseParams(args map[string]interface{}) (*types.
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Validate action
 	validActions := map[string]bool{
 		"boot":     true,
@@ -137,7 +137,7 @@ func (t *SimulatorControlTool) parseParams(args map[string]interface{}) (*types.
 		"reset":    true,
 		"erase":    true,
 	}
-	
+
 	if !validActions[action] {
 		return nil, fmt.Errorf("invalid action '%s'. Valid actions are: boot, shutdown, reset, erase", action)
 	}
@@ -191,7 +191,7 @@ func (t *SimulatorControlTool) performSimulatorAction(ctx context.Context, param
 		if errorOutput == "" {
 			errorOutput = result.Output
 		}
-		
+
 		// Check for common error cases and provide better error messages
 		if strings.Contains(errorOutput, "Unable to boot device") {
 			return "", fmt.Errorf("unable to boot simulator (may already be booted): %s", strings.TrimSpace(errorOutput))
@@ -200,7 +200,7 @@ func (t *SimulatorControlTool) performSimulatorAction(ctx context.Context, param
 		} else if strings.Contains(errorOutput, "No device found") {
 			return "", fmt.Errorf("simulator with UDID %s not found", params.UDID)
 		}
-		
+
 		return "", fmt.Errorf("simctl command failed (exit code %d): %s", result.ExitCode, strings.TrimSpace(errorOutput))
 	}
 

@@ -117,7 +117,7 @@ func TestListSchemes_ParseSchemesFromOutput(t *testing.T) {
         TestAppUITests`
 
 	schemes := tool.parseSchemesFromOutput(testOutput)
-	
+
 	expected := []string{"TestApp", "TestAppTests", "TestAppUITests"}
 	if len(schemes) != len(expected) {
 		t.Errorf("Expected %d schemes, got %d", len(expected), len(schemes))
@@ -147,7 +147,7 @@ func TestListSchemes_ParseTargetsFromOutput(t *testing.T) {
         TestApp`
 
 	targets := tool.parseTargetsFromOutput(testOutput)
-	
+
 	expected := []string{"TestApp", "TestAppTests", "TestAppUITests"}
 	if len(targets) != len(expected) {
 		t.Errorf("Expected %d targets, got %d", len(expected), len(targets))
@@ -176,7 +176,7 @@ Build settings for action build and target TestApp:
     ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO`
 
 	targets := tool.parseTargetsFromBuildSettings(testOutput)
-	
+
 	// Should extract unique target names
 	expected := []string{"TestApp", "TestAppTests"}
 	if len(targets) != len(expected) {
@@ -204,7 +204,7 @@ func TestListSchemes_IsSharedScheme(t *testing.T) {
 	// Test with workspace path
 	workspacePath := "/path/to/project.xcworkspace"
 	schemeName := "TestScheme"
-	
+
 	// This will return true in our simplified implementation
 	// In a real implementation, this would check file existence
 	isShared := tool.isSharedScheme(workspacePath, schemeName)
@@ -248,9 +248,9 @@ func TestListSchemes_ParameterValidation(t *testing.T) {
 			valid: true,
 		},
 		{
-			name: "Empty params (auto-detect)",
+			name:   "Empty params (auto-detect)",
 			params: types.SchemesListParams{},
-			valid: false, // Will fail without real project
+			valid:  false, // Will fail without real project
 		},
 	}
 
@@ -407,7 +407,7 @@ func TestListSchemes_ProjectPathPriority(t *testing.T) {
 	// This will fail in test environment, but we can check that it attempts to use workspace
 	_, err := tool.listSchemes(ctx, params)
 	_ = err
-	
+
 	// Error should mention workspace, not project
 	if err != nil && strings.Contains(err.Error(), "project.xcodeproj") && !strings.Contains(err.Error(), "workspace.xcworkspace") {
 		t.Error("Expected workspace to take priority over project")

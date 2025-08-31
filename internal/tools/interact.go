@@ -71,7 +71,7 @@ func (t *UIInteract) InputSchema() map[string]interface{} {
 
 func (t *UIInteract) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
 	var p types.UIInteractParams
-	
+
 	// Parse parameters from args
 	if udid, exists := args["udid"]; exists {
 		if str, ok := udid.(string); ok {
@@ -215,7 +215,7 @@ func (t *UIInteract) performTap(ctx context.Context, params *types.UIInteractPar
 		// Coordinate-based tap
 		x := params.Coordinates[0]
 		y := params.Coordinates[1]
-		
+
 		// In test environment, return mock result
 		if t.isTestEnvironment(params.UDID) {
 			return &types.UIInteractResult{
@@ -224,14 +224,14 @@ func (t *UIInteract) performTap(ctx context.Context, params *types.UIInteractPar
 				Found:   true,
 			}, nil
 		}
-		
-		args = []string{"simctl", "io", params.UDID, "tap", 
-			strconv.FormatFloat(x, 'f', 1, 64), 
+
+		args = []string{"simctl", "io", params.UDID, "tap",
+			strconv.FormatFloat(x, 'f', 1, 64),
 			strconv.FormatFloat(y, 'f', 1, 64)}
-		
+
 		cmd := exec.CommandContext(ctx, "xcrun", args...)
 		output, err := cmd.CombinedOutput()
-		
+
 		if err != nil {
 			return &types.UIInteractResult{Success: false}, fmt.Errorf("tap failed: %w\nOutput: %s", err, string(output))
 		}
@@ -256,10 +256,10 @@ func (t *UIInteract) performDoubleTap(ctx context.Context, params *types.UIInter
 
 	// Perform two taps in quick succession
 	for i := 0; i < 2; i++ {
-		args := []string{"simctl", "io", params.UDID, "tap", 
-			strconv.FormatFloat(x, 'f', 1, 64), 
+		args := []string{"simctl", "io", params.UDID, "tap",
+			strconv.FormatFloat(x, 'f', 1, 64),
 			strconv.FormatFloat(y, 'f', 1, 64)}
-		
+
 		cmd := exec.CommandContext(ctx, "xcrun", args...)
 		if err := cmd.Run(); err != nil {
 			return &types.UIInteractResult{Success: false}, fmt.Errorf("double tap failed on attempt %d: %w", i+1, err)
@@ -285,7 +285,7 @@ func (t *UIInteract) performLongPress(ctx context.Context, params *types.UIInter
 
 	x := params.Coordinates[0]
 	y := params.Coordinates[1]
-	
+
 	// Duration from parameters or default to 2 seconds
 	duration := 2.0
 	if durationParam, ok := params.Parameters["duration"]; ok {
@@ -294,15 +294,15 @@ func (t *UIInteract) performLongPress(ctx context.Context, params *types.UIInter
 		}
 	}
 
-	args := []string{"simctl", "io", params.UDID, "tap", 
-		strconv.FormatFloat(x, 'f', 1, 64), 
+	args := []string{"simctl", "io", params.UDID, "tap",
+		strconv.FormatFloat(x, 'f', 1, 64),
 		strconv.FormatFloat(y, 'f', 1, 64)}
-	
+
 	// Note: simctl doesn't have native long press, so we simulate with regular tap
 	// In a real implementation, this would use more sophisticated touch simulation
 	cmd := exec.CommandContext(ctx, "xcrun", args...)
 	output, err := cmd.CombinedOutput()
-	
+
 	if err != nil {
 		return &types.UIInteractResult{Success: false}, fmt.Errorf("long press failed: %w\nOutput: %s", err, string(output))
 	}
@@ -336,15 +336,15 @@ func (t *UIInteract) performSwipe(ctx context.Context, params *types.UIInteractP
 		}, nil
 	}
 
-	args := []string{"simctl", "io", params.UDID, "swipe", 
-		strconv.FormatFloat(startX, 'f', 1, 64), 
+	args := []string{"simctl", "io", params.UDID, "swipe",
+		strconv.FormatFloat(startX, 'f', 1, 64),
 		strconv.FormatFloat(startY, 'f', 1, 64),
-		strconv.FormatFloat(endX, 'f', 1, 64), 
+		strconv.FormatFloat(endX, 'f', 1, 64),
 		strconv.FormatFloat(endY, 'f', 1, 64)}
-	
+
 	cmd := exec.CommandContext(ctx, "xcrun", args...)
 	output, err := cmd.CombinedOutput()
-	
+
 	if err != nil {
 		return &types.UIInteractResult{Success: false}, fmt.Errorf("swipe failed: %w\nOutput: %s", err, string(output))
 	}
@@ -371,10 +371,10 @@ func (t *UIInteract) performType(ctx context.Context, params *types.UIInteractPa
 	}
 
 	args := []string{"simctl", "io", params.UDID, "type", params.Text}
-	
+
 	cmd := exec.CommandContext(ctx, "xcrun", args...)
 	output, err := cmd.CombinedOutput()
-	
+
 	if err != nil {
 		return &types.UIInteractResult{Success: false}, fmt.Errorf("type failed: %w\nOutput: %s", err, string(output))
 	}
@@ -388,10 +388,10 @@ func (t *UIInteract) performType(ctx context.Context, params *types.UIInteractPa
 
 func (t *UIInteract) performHomeButton(ctx context.Context, params *types.UIInteractParams) (*types.UIInteractResult, error) {
 	args := []string{"simctl", "io", params.UDID, "home"}
-	
+
 	cmd := exec.CommandContext(ctx, "xcrun", args...)
 	output, err := cmd.CombinedOutput()
-	
+
 	if err != nil {
 		return &types.UIInteractResult{Success: false}, fmt.Errorf("home button failed: %w\nOutput: %s", err, string(output))
 	}
@@ -405,10 +405,10 @@ func (t *UIInteract) performHomeButton(ctx context.Context, params *types.UIInte
 
 func (t *UIInteract) performShake(ctx context.Context, params *types.UIInteractParams) (*types.UIInteractResult, error) {
 	args := []string{"simctl", "io", params.UDID, "shake"}
-	
+
 	cmd := exec.CommandContext(ctx, "xcrun", args...)
 	output, err := cmd.CombinedOutput()
-	
+
 	if err != nil {
 		return &types.UIInteractResult{Success: false}, fmt.Errorf("shake failed: %w\nOutput: %s", err, string(output))
 	}
@@ -454,10 +454,10 @@ func (t *UIInteract) performRotate(ctx context.Context, params *types.UIInteract
 	}
 
 	args := []string{"simctl", "io", params.UDID, "orientation", simctlOrientation}
-	
+
 	cmd := exec.CommandContext(ctx, "xcrun", args...)
 	output, err := cmd.CombinedOutput()
-	
+
 	if err != nil {
 		return &types.UIInteractResult{Success: false}, fmt.Errorf("rotate failed: %w\nOutput: %s", err, string(output))
 	}
@@ -524,4 +524,3 @@ func abs(x float64) float64 {
 	}
 	return x
 }
-

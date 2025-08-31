@@ -9,9 +9,9 @@ import (
 
 func TestSetupLogger(t *testing.T) {
 	tests := []struct {
-		name     string
-		level    string
-		checkFn  func(*log.Logger) bool
+		name    string
+		level   string
+		checkFn func(*log.Logger) bool
 	}{
 		{
 			name:  "debug level",
@@ -119,7 +119,7 @@ func TestErrorOnlyWriter(t *testing.T) {
 	defer tempFile.Close()
 
 	writer := &errorOnlyWriter{writer: tempFile}
-	
+
 	testData := []byte("test error message\n")
 	n, err := writer.Write(testData)
 	if err != nil {
@@ -145,11 +145,11 @@ func TestMainFlags(t *testing.T) {
 
 	// Test version flag parsing
 	os.Args = []string{"cmd", "-version"}
-	
+
 	// We can't easily test main() directly as it calls os.Exit
 	// Instead, we verify that the flags are defined correctly
 	// This is more of a smoke test to ensure compilation works
-	
+
 	// Reset for other tests
 	os.Args = oldArgs
 }

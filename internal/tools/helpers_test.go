@@ -8,9 +8,9 @@ func TestSelectBestSimulator(t *testing.T) {
 	// This test checks what selectBestSimulator actually returns
 	// Behavior depends on whether simulators are available
 	simulator, err := selectBestSimulator("")
-	
+
 	t.Logf("selectBestSimulator returned: simulator=%+v, err=%v", simulator, err)
-	
+
 	// Either succeeds with a simulator or fails with an error
 	if err == nil {
 		// Success case - simulator should be valid

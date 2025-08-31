@@ -125,7 +125,7 @@ func TestScreenshot_GenerateScreenshotPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.format, func(t *testing.T) {
 			path := tool.generateScreenshotPath(tt.format)
-			
+
 			if path == "" {
 				t.Error("Expected non-empty path")
 			}
@@ -227,7 +227,7 @@ func TestScreenshot_ParameterValidation(t *testing.T) {
 			if tt.params.Format != "" {
 				args["format"] = tt.params.Format
 			}
-			
+
 			resultStr, execErr := tool.Execute(ctx, args)
 
 			if tt.valid {

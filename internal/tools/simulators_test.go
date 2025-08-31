@@ -46,21 +46,21 @@ func TestListSimulatorsTool_Description(t *testing.T) {
 func TestListSimulatorsTool_Schema(t *testing.T) {
 	tool := NewListSimulatorsTool(nil, nil, nil)
 	schema := tool.InputSchema()
-	
+
 	if schema == nil {
 		t.Fatal("Expected non-nil schema")
 	}
-	
+
 	schemaType, ok := schema["type"].(string)
 	if !ok || schemaType != "object" {
 		t.Error("Expected schema type to be 'object'")
 	}
-	
+
 	properties, ok := schema["properties"].(map[string]interface{})
 	if !ok {
 		t.Fatal("Expected properties in schema")
 	}
-	
+
 	expectedProps := []string{"platform", "device_type", "runtime", "available", "state"}
 	for _, prop := range expectedProps {
 		if _, exists := properties[prop]; !exists {

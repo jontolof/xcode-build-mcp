@@ -110,7 +110,7 @@ func TestDescribeUI_GenerateMockJSONHierarchy(t *testing.T) {
 
 	// Test JSON hierarchy generation
 	jsonData := tool.generateMockJSONHierarchy(false, 5)
-	
+
 	if jsonData == "" {
 		t.Error("Expected non-empty JSON data")
 	}
@@ -158,7 +158,7 @@ func TestDescribeUI_GenerateMockTextHierarchy(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.format, func(t *testing.T) {
 			textData := tool.generateMockTextHierarchy(tt.format, tt.includeText, 5)
-			
+
 			if textData == "" {
 				t.Error("Expected non-empty text data")
 			}
@@ -177,7 +177,7 @@ func TestDescribeUI_CountElementsInJSON(t *testing.T) {
 
 	jsonData := `{"type": "Application", "children": [{"type": "Button"}, {"type": "Label"}]}`
 	count := tool.countElementsInJSON(jsonData)
-	
+
 	expected := 3 // Application, Button, Label
 	if count != expected {
 		t.Errorf("Expected count %d, got %d", expected, count)
@@ -193,7 +193,7 @@ Text: "Hello World"
 Label [0,40,100,20]`
 
 	count := tool.countElementsInText(textData)
-	
+
 	expected := 3 // Application, Button, Label (Text: line is ignored)
 	if count != expected {
 		t.Errorf("Expected count %d, got %d", expected, count)
@@ -217,7 +217,7 @@ func TestDescribeUI_AddTextToHierarchy(t *testing.T) {
 
 	children := hierarchy["children"].([]map[string]interface{})
 	button := children[0]
-	
+
 	if button["text"] != "Submit" {
 		t.Errorf("Expected button text 'Submit', got %v", button["text"])
 	}
@@ -316,7 +316,7 @@ func TestDescribeUI_ParameterValidation(t *testing.T) {
 			if tt.params.IncludeText {
 				args["include_text"] = tt.params.IncludeText
 			}
-			
+
 			resultStr, execErr := tool.Execute(ctx, args)
 
 			if tt.valid {

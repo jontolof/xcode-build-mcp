@@ -48,34 +48,34 @@ func TestInstallAppTool_Description(t *testing.T) {
 func TestInstallAppTool_Schema(t *testing.T) {
 	tool := NewInstallAppTool(nil, nil, nil)
 	schema := tool.InputSchema()
-	
+
 	if schema == nil {
 		t.Fatal("Expected non-nil schema")
 	}
-	
+
 	schemaType, ok := schema["type"].(string)
 	if !ok || schemaType != "object" {
 		t.Error("Expected schema type to be 'object'")
 	}
-	
+
 	properties, ok := schema["properties"].(map[string]interface{})
 	if !ok {
 		t.Fatal("Expected properties in schema")
 	}
-	
+
 	expectedProps := []string{"app_path", "udid", "device_type", "replace"}
 	for _, prop := range expectedProps {
 		if _, exists := properties[prop]; !exists {
 			t.Errorf("Expected property %s in schema", prop)
 		}
 	}
-	
+
 	// Check required fields
 	required, ok := schema["required"].([]string)
 	if !ok {
 		t.Fatal("Expected required fields in schema")
 	}
-	
+
 	expectedRequired := []string{"app_path"}
 	if len(required) != len(expectedRequired) {
 		t.Errorf("Expected %d required fields, got %d", len(expectedRequired), len(required))
@@ -86,13 +86,13 @@ func TestInstallAppTool_Execute_MissingAppPath(t *testing.T) {
 	executor := xcode.NewExecutor(&testLogger{})
 	parser := xcode.NewParser()
 	logger := &testLogger{}
-	
+
 	tool := NewInstallAppTool(executor, parser, logger)
-	
+
 	params := map[string]interface{}{
 		"udid": "ABC123-DEF4-5678-9ABC-DEF123456789",
 	}
-	
+
 	_, err := tool.Execute(context.Background(), params)
 	if err == nil {
 		t.Fatal("Expected error for missing app_path")
@@ -103,14 +103,14 @@ func TestInstallAppTool_Execute_EmptyAppPath(t *testing.T) {
 	executor := xcode.NewExecutor(&testLogger{})
 	parser := xcode.NewParser()
 	logger := &testLogger{}
-	
+
 	tool := NewInstallAppTool(executor, parser, logger)
-	
+
 	params := map[string]interface{}{
 		"app_path": "",
 		"udid":     "ABC123-DEF4-5678-9ABC-DEF123456789",
 	}
-	
+
 	_, err := tool.Execute(context.Background(), params)
 	if err == nil {
 		t.Fatal("Expected error for empty app_path")

@@ -101,13 +101,13 @@ func (t *DiscoverProjectsTool) Execute(ctx context.Context, args map[string]inte
 		Projects: projects,
 		Duration: duration,
 	}
-	
+
 	// Convert result to JSON string
 	resultJSON, err := json.Marshal(result)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal result: %w", err)
 	}
-	
+
 	return string(resultJSON), nil
 }
 
@@ -246,7 +246,7 @@ func (t *DiscoverProjectsTool) extractProjectInfo(ctx context.Context, projectPa
 func (t *DiscoverProjectsTool) extractSchemes(ctx context.Context, projectPath, projectType string) ([]string, error) {
 	// Build xcodebuild command to list schemes
 	args := []string{"xcodebuild", "-list"}
-	
+
 	if projectType == "workspace" {
 		args = append(args, "-workspace", projectPath)
 	} else {
@@ -264,7 +264,7 @@ func (t *DiscoverProjectsTool) extractSchemes(ctx context.Context, projectPath, 
 func (t *DiscoverProjectsTool) extractTargets(ctx context.Context, projectPath, projectType string) ([]string, error) {
 	// Build xcodebuild command to list targets
 	args := []string{"xcodebuild", "-list"}
-	
+
 	if projectType == "workspace" {
 		args = append(args, "-workspace", projectPath)
 	} else {

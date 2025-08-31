@@ -130,7 +130,8 @@ func TestGetAppInfo_ExtractFromLocalBundle_NonexistentPath(t *testing.T) {
 		AppPath: "/nonexistent/path/App.app",
 	}
 
-	result, err := tool.extractAppInfo(ctx, params); _ = result
+	result, err := tool.extractAppInfo(ctx, params)
+	_ = result
 
 	if err == nil {
 		t.Error("Expected error for nonexistent app path")
@@ -156,7 +157,8 @@ func TestGetAppInfo_ExtractFromLocalBundle_InvalidFormat(t *testing.T) {
 		AppPath: tempFile.Name(),
 	}
 
-	result, err := tool.extractAppInfo(ctx, params); _ = result
+	result, err := tool.extractAppInfo(ctx, params)
+	_ = result
 
 	if err == nil {
 		t.Error("Expected error for invalid app bundle format")

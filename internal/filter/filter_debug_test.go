@@ -8,7 +8,7 @@ import (
 // TestMinimalModeFiltering tests that minimal mode aggressively filters compilation noise
 func TestMinimalModeFiltering(t *testing.T) {
 	filter := NewFilter(Minimal)
-	
+
 	// Simulate realistic xcodebuild output with compilation noise
 	testInput := `Command line invocation:
     /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild test -scheme TestScheme
@@ -62,26 +62,26 @@ Test Suite 'All tests' passed at 2024-01-15 10:30:52.167
 ** TEST SUCCEEDED **`
 
 	result := filter.Filter(testInput)
-	
+
 	// Count lines in result
 	resultLines := strings.Count(result, "\n")
 	inputLines := strings.Count(testInput, "\n")
-	
+
 	t.Logf("Input lines: %d", inputLines)
 	t.Logf("Output lines: %d", resultLines)
 	t.Logf("Reduction: %.1f%%", float64(inputLines-resultLines)/float64(inputLines)*100)
 	t.Logf("Filtered output:\n%s", result)
-	
+
 	// Should keep test results
 	if !strings.Contains(result, "** TEST SUCCEEDED **") {
 		t.Error("Should keep test success marker")
 	}
-	
+
 	// Should keep test summary
 	if !strings.Contains(result, "Executed 3 tests") || !strings.Contains(result, "All tests' passed") {
 		t.Log("Note: Some test summary details may be filtered in minimal mode")
 	}
-	
+
 	// Should remove ALL compilation noise
 	noisePatterns := []string{
 		"SwiftDriver",
@@ -95,18 +95,18 @@ Test Suite 'All tests' passed at 2024-01-15 10:30:52.167
 		"-Xfrontend",
 		"/usr/bin/clang",
 	}
-	
+
 	for _, pattern := range noisePatterns {
 		if strings.Contains(result, pattern) {
 			t.Errorf("Should remove compilation noise: %s", pattern)
 		}
 	}
-	
+
 	// Verify aggressive filtering - should be < 20 lines for minimal mode
 	if resultLines > 20 {
 		t.Errorf("Minimal mode should produce < 20 lines, got %d", resultLines)
 	}
-	
+
 	// Check token estimate (rough: ~5 tokens per line)
 	estimatedTokens := resultLines * 5
 	if estimatedTokens > 500 {
@@ -117,41 +117,41 @@ Test Suite 'All tests' passed at 2024-01-15 10:30:52.167
 // TestStandardModeFiltering tests that standard mode provides useful context within limits
 func TestStandardModeFiltering(t *testing.T) {
 	filter := NewFilter(Standard)
-	
+
 	// Create a large input to test truncation
 	var builder strings.Builder
 	builder.WriteString("** BUILD STARTED **\n")
-	
+
 	// Add lots of compilation lines
 	for i := 0; i < 1000; i++ {
 		builder.WriteString("SwiftDriver compilation line ")
 		builder.WriteString(strings.Repeat("x", 100))
 		builder.WriteString("\n")
 	}
-	
+
 	// Add test results
 	builder.WriteString("Test Case 'MyTest.testExample' started\n")
 	builder.WriteString("Test Case 'MyTest.testExample' passed (0.1 seconds)\n")
 	builder.WriteString("** TEST SUCCEEDED **\n")
-	
+
 	testInput := builder.String()
 	result := filter.Filter(testInput)
-	
+
 	resultLines := strings.Count(result, "\n")
-	
+
 	t.Logf("Input lines: %d", strings.Count(testInput, "\n"))
 	t.Logf("Output lines: %d", resultLines)
-	
+
 	// Should truncate at limit
 	if resultLines > 200 {
 		t.Errorf("Standard mode should limit to 200 lines, got %d", resultLines)
 	}
-	
+
 	// Should include truncation message
 	if resultLines >= 200 && !strings.Contains(result, "truncated") {
 		t.Error("Should include truncation message when hitting limit")
 	}
-	
+
 	// Should keep test results
 	if !strings.Contains(result, "** TEST SUCCEEDED **") {
 		t.Error("Should keep test success marker")
@@ -161,7 +161,7 @@ func TestStandardModeFiltering(t *testing.T) {
 // TestVerboseModeFiltering tests that verbose mode still has limits
 func TestVerboseModeFiltering(t *testing.T) {
 	filter := NewFilter(Verbose)
-	
+
 	// Create a massive input
 	var builder strings.Builder
 	for i := 0; i < 2000; i++ {
@@ -169,20 +169,20 @@ func TestVerboseModeFiltering(t *testing.T) {
 		builder.WriteString(strings.Repeat("x", 200))
 		builder.WriteString("\n")
 	}
-	
+
 	testInput := builder.String()
 	result := filter.Filter(testInput)
-	
+
 	resultLines := strings.Count(result, "\n")
-	
+
 	t.Logf("Input lines: %d", strings.Count(testInput, "\n"))
 	t.Logf("Output lines: %d", resultLines)
-	
+
 	// Should truncate at limit (allowing for truncation message)
 	if resultLines > 802 { // 800 lines + newline + truncation message
 		t.Errorf("Verbose mode should limit to ~800 lines, got %d", resultLines)
 	}
-	
+
 	// Should include truncation message
 	if strings.Contains(result, "truncated") {
 		t.Log("Truncation message included as expected")
@@ -192,20 +192,20 @@ func TestVerboseModeFiltering(t *testing.T) {
 // TestEmptyLineHandling tests that empty lines are handled correctly
 func TestEmptyLineHandling(t *testing.T) {
 	filter := NewFilter(Minimal)
-	
+
 	testInput := `** BUILD SUCCEEDED **
 
 
 ** TEST SUCCEEDED **`
-	
+
 	result := filter.Filter(testInput)
-	
+
 	// In minimal mode, empty lines should be removed
 	consecutiveNewlines := strings.Contains(result, "\n\n\n")
 	if consecutiveNewlines {
 		t.Error("Minimal mode should remove empty lines")
 	}
-	
+
 	// Should keep the important content
 	if !strings.Contains(result, "** BUILD SUCCEEDED **") {
 		t.Error("Should keep build success")
@@ -218,7 +218,7 @@ func TestEmptyLineHandling(t *testing.T) {
 // TestCompilationNoiseFiltering specifically tests the new compilation noise filter
 func TestCompilationNoiseFiltering(t *testing.T) {
 	filter := NewFilter(Minimal)
-	
+
 	noiseLines := []string{
 		"SwiftDriver MCPServerTestProjectUITests normal arm64",
 		"ExecuteExternalTool /Applications/Xcode.app/Contents",
@@ -274,16 +274,16 @@ func TestCompilationNoiseFiltering(t *testing.T) {
 		"/usr/bin/swift",
 		"DerivedData/TestApp",
 	}
-	
+
 	// All noise lines should be filtered
 	for _, line := range noiseLines {
 		input := line + "\n** TEST SUCCEEDED **"
 		result := filter.Filter(input)
-		
+
 		if strings.Contains(result, line) {
 			t.Errorf("Should filter compilation noise: %s", line)
 		}
-		
+
 		// But should keep the test result
 		if !strings.Contains(result, "** TEST SUCCEEDED **") {
 			t.Errorf("Should keep test result even when filtering: %s", line)

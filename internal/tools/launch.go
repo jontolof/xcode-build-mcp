@@ -107,7 +107,7 @@ func (t *LaunchAppTool) Execute(ctx context.Context, args map[string]interface{}
 
 	duration := time.Since(start)
 	result.Duration = duration
-	
+
 	t.logger.Printf("Successfully launched app %s in %v", params.BundleID, duration)
 
 	// Convert result to JSON string
@@ -225,21 +225,21 @@ func (t *LaunchAppTool) selectBestDevice(ctx context.Context, deviceTypeFilter s
 			}
 
 			deviceType := extractDeviceTypeFromId(device.DeviceTypeId)
-			
+
 			// Apply device type filter if provided
 			if deviceTypeFilter != "" && !strings.Contains(strings.ToLower(deviceType), strings.ToLower(deviceTypeFilter)) {
 				continue
 			}
 
 			score := 0
-			
+
 			// Prefer iOS devices
 			if platform == "iOS" {
 				score += 100
 			} else if platform == "tvOS" {
 				score += 50
 			}
-			
+
 			// Prefer iPhone over iPad
 			if strings.Contains(deviceType, "iPhone") {
 				score += 30
@@ -279,18 +279,18 @@ func (t *LaunchAppTool) selectBestDevice(ctx context.Context, deviceTypeFilter s
 
 func (t *LaunchAppTool) launchApp(ctx context.Context, params *types.AppLaunchParams, udid string) (*types.AppLaunchResult, error) {
 	args := []string{"xcrun", "simctl", "launch"}
-	
+
 	// Add wait flag if requested
 	if params.WaitForExit {
 		args = append(args, "--wait-for-debugger")
 	}
-	
+
 	// Add device UDID
 	args = append(args, udid)
-	
+
 	// Add bundle ID
 	args = append(args, params.BundleID)
-	
+
 	// Add arguments if provided
 	if len(params.Arguments) > 0 {
 		args = append(args, params.Arguments...)
@@ -323,7 +323,7 @@ func (t *LaunchAppTool) launchApp(ctx context.Context, params *types.AppLaunchPa
 		if errorOutput == "" {
 			errorOutput = cmdResult.Output
 		}
-		
+
 		// Check for common error cases and provide better error messages
 		if strings.Contains(errorOutput, "Unable to launch") {
 			return result, fmt.Errorf("unable to launch app: %s", strings.TrimSpace(errorOutput))
@@ -332,12 +332,12 @@ func (t *LaunchAppTool) launchApp(ctx context.Context, params *types.AppLaunchPa
 		} else if strings.Contains(errorOutput, "App is not installed") {
 			return result, fmt.Errorf("app with bundle ID %s is not installed on the device", params.BundleID)
 		}
-		
+
 		return result, fmt.Errorf("launch failed (exit code %d): %s", cmdResult.ExitCode, strings.TrimSpace(errorOutput))
 	}
 
 	result.Success = true
-	
+
 	// Try to extract process ID from output
 	processID, err := t.extractProcessID(cmdResult.Output)
 	if err == nil {
@@ -358,7 +358,7 @@ func (t *LaunchAppTool) extractProcessID(output string) (int, error) {
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		
+
 		// Try different patterns for process ID
 		if strings.Contains(line, "Process ID:") || strings.Contains(line, "PID:") {
 			parts := strings.Fields(line)
@@ -370,7 +370,7 @@ func (t *LaunchAppTool) extractProcessID(output string) (int, error) {
 				}
 			}
 		}
-		
+
 		// Try to find standalone numbers that might be PIDs
 		if strings.Contains(line, ":") {
 			parts := strings.Split(line, ":")
@@ -382,7 +382,7 @@ func (t *LaunchAppTool) extractProcessID(output string) (int, error) {
 			}
 		}
 	}
-	
+
 	return 0, fmt.Errorf("process ID not found in output")
 }
 

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	
+
 	"github.com/jontolof/xcode-build-mcp/internal/tools"
 	"github.com/jontolof/xcode-build-mcp/internal/xcode"
 )
@@ -19,7 +19,7 @@ type Server struct {
 
 func NewServer(logger *log.Logger) (*Server, error) {
 	registry := NewRegistry()
-	
+
 	server := &Server{
 		logger:   logger,
 		registry: registry,
@@ -196,91 +196,91 @@ func (s *Server) registerTools() error {
 	// Create xcode components
 	executor := xcode.NewExecutor(s.logger)
 	parser := xcode.NewParser()
-	
+
 	// Register build tool
 	buildTool := tools.NewXcodeBuildTool(executor, parser, s.logger)
 	if err := s.registry.Register(buildTool); err != nil {
 		return fmt.Errorf("failed to register xcode_build tool: %w", err)
 	}
-	
-	// Register test tool  
+
+	// Register test tool
 	testTool := tools.NewXcodeTestTool(executor, parser, s.logger)
 	if err := s.registry.Register(testTool); err != nil {
 		return fmt.Errorf("failed to register xcode_test tool: %w", err)
 	}
-	
+
 	// Register clean tool
 	cleanTool := tools.NewXcodeCleanTool(executor, parser, s.logger)
 	if err := s.registry.Register(cleanTool); err != nil {
 		return fmt.Errorf("failed to register xcode_clean tool: %w", err)
 	}
-	
+
 	// Register discover projects tool
 	discoverTool := tools.NewDiscoverProjectsTool(executor, parser, s.logger)
 	if err := s.registry.Register(discoverTool); err != nil {
 		return fmt.Errorf("failed to register discover_projects tool: %w", err)
 	}
-	
+
 	// Register list simulators tool
 	listSimulatorsTool := tools.NewListSimulatorsTool(executor, parser, s.logger)
 	if err := s.registry.Register(listSimulatorsTool); err != nil {
 		return fmt.Errorf("failed to register list_simulators tool: %w", err)
 	}
-	
+
 	// Register simulator control tool
 	simulatorControlTool := tools.NewSimulatorControlTool(executor, parser, s.logger)
 	if err := s.registry.Register(simulatorControlTool); err != nil {
 		return fmt.Errorf("failed to register simulator_control tool: %w", err)
 	}
-	
+
 	// Register install app tool
 	installAppTool := tools.NewInstallAppTool(executor, parser, s.logger)
 	if err := s.registry.Register(installAppTool); err != nil {
 		return fmt.Errorf("failed to register install_app tool: %w", err)
 	}
-	
+
 	// Register launch app tool
 	launchAppTool := tools.NewLaunchAppTool(executor, parser, s.logger)
 	if err := s.registry.Register(launchAppTool); err != nil {
 		return fmt.Errorf("failed to register launch_app tool: %w", err)
 	}
-	
+
 	// Register list schemes tool
 	listSchemesTool := tools.NewListSchemes()
 	if err := s.registry.Register(listSchemesTool); err != nil {
 		return fmt.Errorf("failed to register list_schemes tool: %w", err)
 	}
-	
+
 	// Register capture logs tool
 	captureLogsTool := tools.NewCaptureLogs()
 	if err := s.registry.Register(captureLogsTool); err != nil {
 		return fmt.Errorf("failed to register capture_logs tool: %w", err)
 	}
-	
+
 	// Register screenshot tool
 	screenshotTool := tools.NewScreenshot()
 	if err := s.registry.Register(screenshotTool); err != nil {
 		return fmt.Errorf("failed to register screenshot tool: %w", err)
 	}
-	
+
 	// Register describe UI tool
 	describeUITool := tools.NewDescribeUI()
 	if err := s.registry.Register(describeUITool); err != nil {
 		return fmt.Errorf("failed to register describe_ui tool: %w", err)
 	}
-	
+
 	// Register UI interact tool
 	uiInteractTool := tools.NewUIInteract()
 	if err := s.registry.Register(uiInteractTool); err != nil {
 		return fmt.Errorf("failed to register ui_interact tool: %w", err)
 	}
-	
+
 	// Register get app info tool
 	getAppInfoTool := tools.NewGetAppInfo()
 	if err := s.registry.Register(getAppInfoTool); err != nil {
 		return fmt.Errorf("failed to register get_app_info tool: %w", err)
 	}
-	
+
 	// Only log in debug mode
 	if os.Getenv("MCP_LOG_LEVEL") == "debug" {
 		s.logger.Printf("Registered %d tools successfully", s.registry.Count())
