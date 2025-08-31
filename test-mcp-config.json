@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "xcode-build": {
+      "command": "/Users/jontolof/Development/SCM/xcode-build-mcp/xcode-build-mcp",
+      "args": ["stdio"],
+      "env": {
+        "MCP_LOG_LEVEL": "debug"
+      }
+    }
+  }
+}
