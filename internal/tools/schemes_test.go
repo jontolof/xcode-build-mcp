@@ -10,14 +10,14 @@ import (
 )
 
 func TestListSchemes_Name(t *testing.T) {
-	tool := &ListSchemes{}
+	tool := NewListSchemes()
 	if got := tool.Name(); got != "list_schemes" {
 		t.Errorf("ListSchemes.Name() = %v, want %v", got, "list_schemes")
 	}
 }
 
 func TestListSchemes_Description(t *testing.T) {
-	tool := &ListSchemes{}
+	tool := NewListSchemes()
 	desc := tool.Description()
 	if desc == "" {
 		t.Error("ListSchemes.Description() returned empty string")
@@ -28,39 +28,36 @@ func TestListSchemes_Description(t *testing.T) {
 }
 
 func TestListSchemes_Execute_InvalidParams(t *testing.T) {
-	tool := &ListSchemes{}
+	tool := NewListSchemes()
 	ctx := context.Background()
 
-	// Test with invalid JSON
-	result, err := tool.Execute(ctx, json.RawMessage(`{"invalid": json}`))
-	if err == nil {
-		t.Error("Expected error for invalid JSON, got nil")
-	}
-	if result != nil {
-		t.Errorf("Expected nil result for invalid params, got %+v", result)
+	// Test with empty params (no project specified)
+	result, _ := tool.Execute(ctx, map[string]interface{}{})
+	// This might succeed due to auto-detection, so just check for string result
+	if result == "" {
+		t.Error("Expected non-empty result string")
 	}
 }
 
 func TestListSchemes_Execute_ValidParams(t *testing.T) {
-	tool := &ListSchemes{}
+	tool := NewListSchemes()
 	ctx := context.Background()
 
-	params := types.SchemesListParams{
-		ProjectPath: "/path/to/test.xcodeproj",
+	args := map[string]interface{}{
+		"project_path": "/path/to/test.xcodeproj",
 	}
 
-	paramsJSON, _ := json.Marshal(params)
-	result, err := tool.Execute(ctx, paramsJSON)
-	_ = err
+	result, _ := tool.Execute(ctx, args)
 
-	// Should get a result even if command fails
-	if result == nil {
-		t.Error("Expected non-nil result")
+	// Should get a result string even if command fails
+	if result == "" {
+		t.Error("Expected non-empty result string")
 	}
 
-	schemesResult, ok := result.(*types.SchemesListResult)
-	if !ok {
-		t.Errorf("Expected *types.SchemesListResult, got %T", result)
+	// Parse JSON result
+	var schemesResult types.SchemesListResult
+	if jsonErr := json.Unmarshal([]byte(result), &schemesResult); jsonErr != nil {
+		t.Errorf("Failed to parse result JSON: %v", jsonErr)
 	}
 
 	if schemesResult.Duration == 0 {
@@ -75,23 +72,22 @@ func TestListSchemes_Execute_ValidParams(t *testing.T) {
 }
 
 func TestListSchemes_Execute_AutoDetect(t *testing.T) {
-	tool := &ListSchemes{}
+	tool := NewListSchemes()
 	ctx := context.Background()
 
 	// Test with minimal params (should trigger auto-detection)
-	params := types.SchemesListParams{}
+	args := map[string]interface{}{}
 
-	paramsJSON, _ := json.Marshal(params)
-	result, err := tool.Execute(ctx, paramsJSON)
-	_ = err
+	result, _ := tool.Execute(ctx, args)
 
-	if result == nil {
-		t.Error("Expected non-nil result")
+	if result == "" {
+		t.Error("Expected non-empty result string")
 	}
 
-	schemesResult, ok := result.(*types.SchemesListResult)
-	if !ok {
-		t.Errorf("Expected *types.SchemesListResult, got %T", result)
+	// Parse JSON result
+	var schemesResult types.SchemesListResult
+	if jsonErr := json.Unmarshal([]byte(result), &schemesResult); jsonErr != nil {
+		t.Errorf("Failed to parse result JSON: %v", jsonErr)
 	}
 
 	// Auto-detection will likely fail in test environment, but structure should be correct
@@ -101,7 +97,7 @@ func TestListSchemes_Execute_AutoDetect(t *testing.T) {
 }
 
 func TestListSchemes_ParseSchemesFromOutput(t *testing.T) {
-	tool := &ListSchemes{}
+	tool := NewListSchemes()
 
 	testOutput := `Information about project "TestProject":
     Targets:
@@ -135,7 +131,7 @@ func TestListSchemes_ParseSchemesFromOutput(t *testing.T) {
 }
 
 func TestListSchemes_ParseTargetsFromOutput(t *testing.T) {
-	tool := &ListSchemes{}
+	tool := NewListSchemes()
 
 	testOutput := `Information about project "TestProject":
     Targets:
@@ -165,7 +161,7 @@ func TestListSchemes_ParseTargetsFromOutput(t *testing.T) {
 }
 
 func TestListSchemes_ParseTargetsFromBuildSettings(t *testing.T) {
-	tool := &ListSchemes{}
+	tool := NewListSchemes()
 
 	testOutput := `Build settings for action build and target TestApp:
     ACTION = build
@@ -203,7 +199,7 @@ Build settings for action build and target TestApp:
 }
 
 func TestListSchemes_IsSharedScheme(t *testing.T) {
-	tool := &ListSchemes{}
+	tool := NewListSchemes()
 
 	// Test with workspace path
 	workspacePath := "/path/to/project.xcworkspace"
@@ -258,22 +254,34 @@ func TestListSchemes_ParameterValidation(t *testing.T) {
 		},
 	}
 
-	tool := &ListSchemes{}
+	tool := NewListSchemes()
 	ctx := context.Background()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			paramsJSON, _ := json.Marshal(tt.params)
-			result, err := tool.Execute(ctx, paramsJSON)
+			// Convert params to args map
+			args := map[string]interface{}{}
+			if tt.params.ProjectPath != "" {
+				args["project_path"] = tt.params.ProjectPath
+			}
+			if tt.params.Workspace != "" {
+				args["workspace"] = tt.params.Workspace
+			}
+			if tt.params.Project != "" {
+				args["project"] = tt.params.Project
+			}
 
-			if result == nil {
-				t.Error("Expected non-nil result")
+			result, err := tool.Execute(ctx, args)
+
+			if result == "" {
+				t.Error("Expected non-empty result string")
 				return
 			}
 
-			schemesResult, ok := result.(*types.SchemesListResult)
-			if !ok {
-				t.Errorf("Expected *types.SchemesListResult, got %T", result)
+			// Parse JSON result
+			var schemesResult types.SchemesListResult
+			if jsonErr := json.Unmarshal([]byte(result), &schemesResult); jsonErr != nil {
+				t.Errorf("Failed to parse result JSON: %v", jsonErr)
 				return
 			}
 
@@ -294,7 +302,7 @@ func TestListSchemes_ParameterValidation(t *testing.T) {
 }
 
 func TestListSchemes_ProjectTypeDetection(t *testing.T) {
-	tool := &ListSchemes{}
+	tool := NewListSchemes()
 	ctx := context.Background()
 
 	tests := []struct {
@@ -348,7 +356,7 @@ func TestListSchemes_ProjectTypeDetection(t *testing.T) {
 }
 
 func TestListSchemes_EmptyOutput(t *testing.T) {
-	tool := &ListSchemes{}
+	tool := NewListSchemes()
 
 	// Test with empty output
 	schemes := tool.parseSchemesFromOutput("")
@@ -368,7 +376,7 @@ func TestListSchemes_EmptyOutput(t *testing.T) {
 }
 
 func TestListSchemes_MalformedOutput(t *testing.T) {
-	tool := &ListSchemes{}
+	tool := NewListSchemes()
 
 	// Test with malformed output that has schemes section but no schemes
 	malformedOutput := `Information about project "TestProject":
@@ -387,7 +395,7 @@ func TestListSchemes_MalformedOutput(t *testing.T) {
 }
 
 func TestListSchemes_ProjectPathPriority(t *testing.T) {
-	tool := &ListSchemes{}
+	tool := NewListSchemes()
 	ctx := context.Background()
 
 	// Test that workspace takes priority over project when both are specified

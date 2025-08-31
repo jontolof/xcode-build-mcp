@@ -13,34 +13,85 @@ import (
 	"github.com/jontolof/xcode-build-mcp/pkg/types"
 )
 
-type GetAppInfo struct{}
+type GetAppInfo struct {
+	name        string
+	description string
+	schema      map[string]interface{}
+}
+
+func NewGetAppInfo() *GetAppInfo {
+	schema := createJSONSchema("object", map[string]interface{}{
+		"app_path": map[string]interface{}{
+			"type":        "string",
+			"description": "Path to the .app bundle or .ipa file",
+		},
+		"bundle_id": map[string]interface{}{
+			"type":        "string",
+			"description": "Bundle identifier to search for app",
+		},
+		"include_entitlements": map[string]interface{}{
+			"type":        "boolean",
+			"description": "Include entitlements in the output (default: false)",
+		},
+		"include_icon_paths": map[string]interface{}{
+			"type":        "boolean",
+			"description": "Include icon file paths (default: false)",
+		},
+	}, []string{})
+
+	return &GetAppInfo{
+		name:        "get_app_info",
+		description: "Extract metadata from iOS/macOS app bundles including bundle ID, version, entitlements, and icon paths",
+		schema:      schema,
+	}
+}
 
 func (t *GetAppInfo) Name() string {
-	return "get_app_info"
+	return t.name
 }
 
 func (t *GetAppInfo) Description() string {
-	return "Extract metadata from iOS/macOS app bundles including bundle ID, version, entitlements, and icon paths"
+	return t.description
 }
 
-func (t *GetAppInfo) Execute(ctx context.Context, params json.RawMessage) (interface{}, error) {
+func (t *GetAppInfo) InputSchema() map[string]interface{} {
+	return t.schema
+}
+
+func (t *GetAppInfo) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
 	var p types.AppInfoParams
-	if err := json.Unmarshal(params, &p); err != nil {
-		return nil, fmt.Errorf("invalid parameters: %w", err)
+	
+	// Parse parameters from args
+	if appPath, exists := args["app_path"]; exists {
+		if str, ok := appPath.(string); ok {
+			p.AppPath = str
+		}
 	}
+	if bundleID, exists := args["bundle_id"]; exists {
+		if str, ok := bundleID.(string); ok {
+			p.BundleID = str
+		}
+	}
+	// Note: IncludeEntitlements and IncludeIconPaths fields don't exist in current AppInfoParams type
 
 	start := time.Now()
 
 	result, err := t.extractAppInfo(ctx, &p)
 	if err != nil {
-		return &types.AppInfoResult{
+		errorResult := &types.AppInfoResult{
 			Success:  false,
 			Duration: time.Since(start),
-		}, err
+		}
+		resultJSON, _ := json.Marshal(errorResult)
+		return string(resultJSON), err
 	}
 
 	result.Duration = time.Since(start)
-	return result, nil
+	resultJSON, err := json.Marshal(result)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal result: %w", err)
+	}
+	return string(resultJSON), nil
 }
 
 func (t *GetAppInfo) extractAppInfo(ctx context.Context, params *types.AppInfoParams) (*types.AppInfoResult, error) {

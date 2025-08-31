@@ -13,20 +13,79 @@ import (
 	"github.com/jontolof/xcode-build-mcp/pkg/types"
 )
 
-type Screenshot struct{}
+type Screenshot struct {
+	name        string
+	description string
+	schema      map[string]interface{}
+}
+
+func NewScreenshot() *Screenshot {
+	schema := createJSONSchema("object", map[string]interface{}{
+		"udid": map[string]interface{}{
+			"type":        "string",
+			"description": "UDID of the target simulator or device (optional for auto-detection)",
+		},
+		"device_type": map[string]interface{}{
+			"type":        "string",
+			"description": "Device type filter for auto-selection if UDID not provided",
+		},
+		"output_path": map[string]interface{}{
+			"type":        "string",
+			"description": "Output path for the screenshot file",
+		},
+		"format": map[string]interface{}{
+			"type":        "string",
+			"description": "Image format (png, jpg) - default: png",
+		},
+	}, []string{})
+
+	return &Screenshot{
+		name:        "screenshot",
+		description: "Capture screenshots from iOS/tvOS/watchOS simulators with automatic naming and format support",
+		schema:      schema,
+	}
+}
 
 func (t *Screenshot) Name() string {
-	return "screenshot"
+	return t.name
 }
 
 func (t *Screenshot) Description() string {
-	return "Capture screenshots from iOS/tvOS/watchOS simulators with automatic naming and format support"
+	return t.description
 }
 
-func (t *Screenshot) Execute(ctx context.Context, params json.RawMessage) (interface{}, error) {
+func (t *Screenshot) InputSchema() map[string]interface{} {
+	return t.schema
+}
+
+func (t *Screenshot) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
+	// Validate that parameters are provided
+	if len(args) == 0 {
+		return "", fmt.Errorf("parameters cannot be empty")
+	}
+
 	var p types.ScreenshotParams
-	if err := json.Unmarshal(params, &p); err != nil {
-		return nil, fmt.Errorf("invalid parameters: %w", err)
+	
+	// Parse parameters from args
+	if udid, exists := args["udid"]; exists {
+		if str, ok := udid.(string); ok {
+			p.UDID = str
+		}
+	}
+	if deviceType, exists := args["device_type"]; exists {
+		if str, ok := deviceType.(string); ok {
+			p.DeviceType = str
+		}
+	}
+	if outputPath, exists := args["output_path"]; exists {
+		if str, ok := outputPath.(string); ok {
+			p.OutputPath = str
+		}
+	}
+	if format, exists := args["format"]; exists {
+		if str, ok := format.(string); ok {
+			p.Format = str
+		}
 	}
 
 	start := time.Now()
@@ -35,7 +94,12 @@ func (t *Screenshot) Execute(ctx context.Context, params json.RawMessage) (inter
 	if p.UDID == "" && p.DeviceType == "" {
 		simulator, err := selectBestSimulator("")
 		if err != nil {
-			return nil, fmt.Errorf("failed to auto-select device: %w", err)
+			errorResult := &types.ScreenshotResult{
+				Success:  false,
+				Duration: time.Since(start),
+			}
+			resultJSON, _ := json.Marshal(errorResult)
+			return string(resultJSON), fmt.Errorf("failed to auto-select device: %w", err)
 		}
 		p.UDID = simulator.UDID
 	}
@@ -57,19 +121,26 @@ func (t *Screenshot) Execute(ctx context.Context, params json.RawMessage) (inter
 
 	result, err := t.captureScreenshot(ctx, &p)
 	if err != nil {
-		return &types.ScreenshotResult{
+		errorResult := &types.ScreenshotResult{
 			Success:  false,
 			Duration: time.Since(start),
-		}, err
+		}
+		resultJSON, _ := json.Marshal(errorResult)
+		return string(resultJSON), err
 	}
 
 	result.Duration = time.Since(start)
-	return result, nil
+	resultJSON, err := json.Marshal(result)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal result: %w", err)
+	}
+	return string(resultJSON), nil
 }
+
 
 func (t *Screenshot) captureScreenshot(ctx context.Context, params *types.ScreenshotParams) (*types.ScreenshotResult, error) {
 	if params.UDID == "" {
-		return nil, fmt.Errorf("device UDID is required")
+		return &types.ScreenshotResult{Success: false}, fmt.Errorf("device UDID is required")
 	}
 
 	// Validate format
@@ -80,13 +151,13 @@ func (t *Screenshot) captureScreenshot(ctx context.Context, params *types.Screen
 	}
 
 	if !supportedFormats[strings.ToLower(params.Format)] {
-		return nil, fmt.Errorf("unsupported format: %s (supported: png, jpeg, jpg)", params.Format)
+		return &types.ScreenshotResult{Success: false}, fmt.Errorf("unsupported format: %s (supported: png, jpeg, jpg)", params.Format)
 	}
 
 	// Ensure output directory exists
 	outputDir := filepath.Dir(params.OutputPath)
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create output directory: %w", err)
+		return &types.ScreenshotResult{Success: false}, fmt.Errorf("failed to create output directory: %w", err)
 	}
 
 	// Build screenshot command
@@ -104,13 +175,13 @@ func (t *Screenshot) captureScreenshot(ctx context.Context, params *types.Screen
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
-		return nil, fmt.Errorf("screenshot failed: %w\nOutput: %s", err, string(output))
+		return &types.ScreenshotResult{Success: false}, fmt.Errorf("screenshot failed: %w\nOutput: %s", err, string(output))
 	}
 
 	// Get file info
 	fileInfo, err := os.Stat(params.OutputPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get file info: %w", err)
+		return &types.ScreenshotResult{Success: false}, fmt.Errorf("failed to get file info: %w", err)
 	}
 
 	// Get dimensions (if possible) using sips command on macOS

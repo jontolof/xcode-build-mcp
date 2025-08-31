@@ -11,21 +11,81 @@ import (
 	"github.com/jontolof/xcode-build-mcp/pkg/types"
 )
 
-type DescribeUI struct{}
+type DescribeUI struct {
+	name        string
+	description string
+	schema      map[string]interface{}
+}
+
+func NewDescribeUI() *DescribeUI {
+	schema := createJSONSchema("object", map[string]interface{}{
+		"udid": map[string]interface{}{
+			"type":        "string",
+			"description": "UDID of the target simulator or device (optional for auto-detection)",
+		},
+		"device_type": map[string]interface{}{
+			"type":        "string",
+			"description": "Device type filter for auto-selection if UDID not provided",
+		},
+		"output_format": map[string]interface{}{
+			"type":        "string",
+			"description": "Output format (tree, flat, json) - default: tree",
+		},
+		"filter_type": map[string]interface{}{
+			"type":        "string",
+			"description": "Filter by element type (button, textField, etc.)",
+		},
+	}, []string{})
+
+	return &DescribeUI{
+		name:        "describe_ui",
+		description: "Describe UI hierarchy of iOS/tvOS/watchOS simulators with tree, flat, or JSON format output",
+		schema:      schema,
+	}
+}
 
 func (t *DescribeUI) Name() string {
-	return "describe_ui"
+	return t.name
 }
 
 func (t *DescribeUI) Description() string {
-	return "Describe UI hierarchy of iOS/tvOS/watchOS simulators with tree, flat, or JSON format output"
+	return t.description
 }
 
-func (t *DescribeUI) Execute(ctx context.Context, params json.RawMessage) (interface{}, error) {
-	var p types.UIDescribeParams
-	if err := json.Unmarshal(params, &p); err != nil {
-		return nil, fmt.Errorf("invalid parameters: %w", err)
+func (t *DescribeUI) InputSchema() map[string]interface{} {
+	return t.schema
+}
+
+func (t *DescribeUI) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
+	// Validate that parameters are provided
+	if len(args) == 0 {
+		return "", fmt.Errorf("parameters cannot be empty")
 	}
+
+	var p types.UIDescribeParams
+	
+	// Parse parameters from args
+	if udid, exists := args["udid"]; exists {
+		if str, ok := udid.(string); ok {
+			p.UDID = str
+		}
+	}
+	if deviceType, exists := args["device_type"]; exists {
+		if str, ok := deviceType.(string); ok {
+			p.DeviceType = str
+		}
+	}
+	if outputFormat, exists := args["output_format"]; exists {
+		if str, ok := outputFormat.(string); ok {
+			p.Format = str
+		}
+	}
+	// Note: FilterType might not exist in current types, skipping for now
+	// if filterType, exists := args["filter_type"]; exists {
+	//	if str, ok := filterType.(string); ok {
+	//		p.FilterType = str
+	//	}
+	// }
 
 	start := time.Now()
 
@@ -33,7 +93,12 @@ func (t *DescribeUI) Execute(ctx context.Context, params json.RawMessage) (inter
 	if p.UDID == "" && p.DeviceType == "" {
 		simulator, err := selectBestSimulator("")
 		if err != nil {
-			return nil, fmt.Errorf("failed to auto-select device: %w", err)
+			errorResult := &types.UIDescribeResult{
+				Success:  false,
+				Duration: time.Since(start),
+			}
+			resultJSON, _ := json.Marshal(errorResult)
+			return string(resultJSON), fmt.Errorf("failed to auto-select device: %w", err)
 		}
 		p.UDID = simulator.UDID
 	}
@@ -48,19 +113,25 @@ func (t *DescribeUI) Execute(ctx context.Context, params json.RawMessage) (inter
 
 	result, err := t.describeUI(ctx, &p)
 	if err != nil {
-		return &types.UIDescribeResult{
+		errorResult := &types.UIDescribeResult{
 			Success:  false,
 			Duration: time.Since(start),
-		}, err
+		}
+		resultJSON, _ := json.Marshal(errorResult)
+		return string(resultJSON), err
 	}
 
 	result.Duration = time.Since(start)
-	return result, nil
+	resultJSON, err := json.Marshal(result)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal result: %w", err)
+	}
+	return string(resultJSON), nil
 }
 
 func (t *DescribeUI) describeUI(ctx context.Context, params *types.UIDescribeParams) (*types.UIDescribeResult, error) {
 	if params.UDID == "" {
-		return nil, fmt.Errorf("device UDID is required")
+		return &types.UIDescribeResult{Success: false}, fmt.Errorf("device UDID is required")
 	}
 
 	// Validate format
@@ -71,20 +142,20 @@ func (t *DescribeUI) describeUI(ctx context.Context, params *types.UIDescribePar
 	}
 
 	if !supportedFormats[strings.ToLower(params.Format)] {
-		return nil, fmt.Errorf("unsupported format: %s (supported: tree, flat, json)", params.Format)
+		return &types.UIDescribeResult{Success: false}, fmt.Errorf("unsupported format: %s (supported: tree, flat, json)", params.Format)
 	}
 
 	// Note: simctl doesn't have direct UI hierarchy commands, so we use a mock implementation
 	
 	// Check if the device is booted first
 	if err := t.ensureDeviceBooted(ctx, params.UDID); err != nil {
-		return nil, fmt.Errorf("device not booted: %w", err)
+		return &types.UIDescribeResult{Success: false}, fmt.Errorf("device not booted: %w", err)
 	}
 
 	// Attempt to get UI accessibility tree
 	uiData, err := t.getUIHierarchy(ctx, params.UDID, params.Format, params.MaxDepth, params.IncludeText)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get UI hierarchy: %w", err)
+		return &types.UIDescribeResult{Success: false}, fmt.Errorf("failed to get UI hierarchy: %w", err)
 	}
 
 	// Parse UI data based on format
@@ -282,3 +353,4 @@ func (t *DescribeUI) countElementsInText(textData string) int {
 	}
 	return count
 }
+

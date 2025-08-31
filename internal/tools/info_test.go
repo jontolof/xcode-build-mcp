@@ -12,14 +12,14 @@ import (
 )
 
 func TestGetAppInfo_Name(t *testing.T) {
-	tool := &GetAppInfo{}
+	tool := NewGetAppInfo()
 	if got := tool.Name(); got != "get_app_info" {
 		t.Errorf("GetAppInfo.Name() = %v, want %v", got, "get_app_info")
 	}
 }
 
 func TestGetAppInfo_Description(t *testing.T) {
-	tool := &GetAppInfo{}
+	tool := NewGetAppInfo()
 	desc := tool.Description()
 	if desc == "" {
 		t.Error("GetAppInfo.Description() returned empty string")
@@ -30,21 +30,26 @@ func TestGetAppInfo_Description(t *testing.T) {
 }
 
 func TestGetAppInfo_Execute_InvalidParams(t *testing.T) {
-	tool := &GetAppInfo{}
+	tool := NewGetAppInfo()
 	ctx := context.Background()
 
-	// Test with invalid JSON
-	result, err := tool.Execute(ctx, json.RawMessage(`{"invalid": json}`))
+	// Test with empty params (no app_path or bundle_id)
+	result, err := tool.Execute(ctx, map[string]interface{}{})
 	if err == nil {
-		t.Error("Expected error for invalid JSON, got nil")
+		t.Error("Expected error for empty params, got nil")
 	}
-	if result != nil {
-		t.Errorf("Expected nil result for invalid params, got %+v", result)
+	if result == "" {
+		t.Error("Expected non-empty result string even on error")
+	}
+	// Result should be valid JSON even on error
+	var resultData map[string]interface{}
+	if jsonErr := json.Unmarshal([]byte(result), &resultData); jsonErr != nil {
+		t.Errorf("Result should be valid JSON: %v", jsonErr)
 	}
 }
 
 func TestGetAppInfo_Execute_ValidParams(t *testing.T) {
-	tool := &GetAppInfo{}
+	tool := NewGetAppInfo()
 	ctx := context.Background()
 
 	// Create a temporary app bundle for testing
@@ -59,21 +64,21 @@ func TestGetAppInfo_Execute_ValidParams(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	params := types.AppInfoParams{
-		AppPath: appPath,
+	args := map[string]interface{}{
+		"app_path": appPath,
 	}
 
-	paramsJSON, _ := json.Marshal(params)
-	result, err := tool.Execute(ctx, paramsJSON)
+	result, err := tool.Execute(ctx, args)
 
-	// Should get a result even if extraction partially fails
-	if result == nil {
-		t.Error("Expected non-nil result")
+	// Should get a result string even if extraction partially fails
+	if result == "" {
+		t.Error("Expected non-empty result string")
 	}
 
-	appInfoResult, ok := result.(*types.AppInfoResult)
-	if !ok {
-		t.Errorf("Expected *types.AppInfoResult, got %T", result)
+	// Parse JSON result
+	var appInfoResult types.AppInfoResult
+	if jsonErr := json.Unmarshal([]byte(result), &appInfoResult); jsonErr != nil {
+		t.Errorf("Failed to parse result JSON: %v", jsonErr)
 	}
 
 	if appInfoResult.Duration == 0 {
@@ -82,14 +87,13 @@ func TestGetAppInfo_Execute_ValidParams(t *testing.T) {
 }
 
 func TestGetAppInfo_Execute_MissingParams(t *testing.T) {
-	tool := &GetAppInfo{}
+	tool := NewGetAppInfo()
 	ctx := context.Background()
 
 	// Test with no app path or bundle ID
-	params := types.AppInfoParams{}
+	args := map[string]interface{}{}
 
-	paramsJSON, _ := json.Marshal(params)
-	result, err := tool.Execute(ctx, paramsJSON)
+	result, err := tool.Execute(ctx, args)
 
 	if err == nil {
 		t.Error("Expected error for missing parameters")
@@ -99,12 +103,17 @@ func TestGetAppInfo_Execute_MissingParams(t *testing.T) {
 		t.Errorf("Expected specific error message, got: %v", err)
 	}
 
-	if result == nil {
-		t.Error("Expected non-nil result even for errors")
+	if result == "" {
+		t.Error("Expected non-empty result string even for errors")
 	}
 
-	appInfoResult, ok := result.(*types.AppInfoResult)
-	if !ok {
+	// Parse JSON result
+	var appInfoResult types.AppInfoResult
+	if jsonErr := json.Unmarshal([]byte(result), &appInfoResult); jsonErr != nil {
+		t.Errorf("Failed to parse result JSON: %v", jsonErr)
+	}
+
+	if appInfoResult.Success {
 		t.Errorf("Expected *types.AppInfoResult, got %T", result)
 	}
 
@@ -365,30 +374,49 @@ func TestGetAppInfo_ParameterValidation(t *testing.T) {
 		},
 	}
 
-	tool := &GetAppInfo{}
+	tool := NewGetAppInfo()
 	ctx := context.Background()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			paramsJSON, _ := json.Marshal(tt.params)
-			result, err := tool.Execute(ctx, paramsJSON)
+			// Convert params to args map
+			args := map[string]interface{}{}
+			if tt.params.AppPath != "" {
+				args["app_path"] = tt.params.AppPath
+			}
+			if tt.params.BundleID != "" {
+				args["bundle_id"] = tt.params.BundleID
+			}
+			if tt.params.UDID != "" {
+				args["udid"] = tt.params.UDID
+			}
+			if tt.params.DeviceType != "" {
+				args["device_type"] = tt.params.DeviceType
+			}
+
+			result, err := tool.Execute(ctx, args)
 
 			if tt.valid {
-				// For valid params, we should get a result
-				if result == nil {
-					t.Error("Expected non-nil result for valid params")
+				// For valid params, we should get a result string
+				if result == "" {
+					t.Error("Expected non-empty result for valid params")
 				}
 			} else {
 				// For invalid params, we expect an error
 				if err == nil {
 					t.Errorf("Expected error for invalid params (%s), but got none", tt.name)
 				}
-				// Should still return a result structure
-				if result == nil {
-					t.Error("Expected non-nil result even for errors")
+				// Should still return a result string
+				if result == "" {
+					t.Error("Expected non-empty result even for errors")
 				} else {
-					appInfoResult, ok := result.(*types.AppInfoResult)
-					if ok && appInfoResult.Success {
+					// Parse JSON result
+					var appInfoResult types.AppInfoResult
+					if jsonErr := json.Unmarshal([]byte(result), &appInfoResult); jsonErr != nil {
+						t.Errorf("Failed to parse result JSON: %v", jsonErr)
+						return
+					}
+					if appInfoResult.Success {
 						t.Errorf("Expected Success to be false for invalid params (%s)", tt.name)
 					}
 				}

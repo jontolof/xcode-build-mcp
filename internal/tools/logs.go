@@ -13,20 +13,101 @@ import (
 	"github.com/jontolof/xcode-build-mcp/pkg/types"
 )
 
-type CaptureLogs struct{}
+type CaptureLogs struct {
+	name        string
+	description string
+	schema      map[string]interface{}
+}
+
+func NewCaptureLogs() *CaptureLogs {
+	schema := createJSONSchema("object", map[string]interface{}{
+		"udid": map[string]interface{}{
+			"type":        "string",
+			"description": "UDID of the target simulator or device (optional for auto-detection)",
+		},
+		"device_type": map[string]interface{}{
+			"type":        "string",
+			"description": "Device type filter for auto-selection if UDID not provided",
+		},
+		"bundle_id": map[string]interface{}{
+			"type":        "string",
+			"description": "Bundle identifier to filter logs for specific app",
+		},
+		"log_level": map[string]interface{}{
+			"type":        "string",
+			"description": "Log level filter (error, fault, info, debug)",
+		},
+		"filter_text": map[string]interface{}{
+			"type":        "string",
+			"description": "Text filter for log messages",
+		},
+		"max_lines": map[string]interface{}{
+			"type":        "integer",
+			"description": "Maximum number of log lines to capture (default: 100)",
+		},
+		"timeout_secs": map[string]interface{}{
+			"type":        "integer",
+			"description": "Timeout in seconds for log capture (default: 30)",
+		},
+	}, []string{})
+
+	return &CaptureLogs{
+		name:        "capture_logs",
+		description: "Capture and stream device/simulator logs with filtering and real-time monitoring capabilities",
+		schema:      schema,
+	}
+}
 
 func (t *CaptureLogs) Name() string {
-	return "capture_logs"
+	return t.name
 }
 
 func (t *CaptureLogs) Description() string {
-	return "Capture and stream device/simulator logs with filtering and real-time monitoring capabilities"
+	return t.description
 }
 
-func (t *CaptureLogs) Execute(ctx context.Context, params json.RawMessage) (interface{}, error) {
+func (t *CaptureLogs) InputSchema() map[string]interface{} {
+	return t.schema
+}
+
+func (t *CaptureLogs) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
 	var p types.LogCaptureParams
-	if err := json.Unmarshal(params, &p); err != nil {
-		return nil, fmt.Errorf("invalid parameters: %w", err)
+	
+	// Parse parameters from args
+	if udid, exists := args["udid"]; exists {
+		if str, ok := udid.(string); ok {
+			p.UDID = str
+		}
+	}
+	if deviceType, exists := args["device_type"]; exists {
+		if str, ok := deviceType.(string); ok {
+			p.DeviceType = str
+		}
+	}
+	if bundleID, exists := args["bundle_id"]; exists {
+		if str, ok := bundleID.(string); ok {
+			p.BundleID = str
+		}
+	}
+	if logLevel, exists := args["log_level"]; exists {
+		if str, ok := logLevel.(string); ok {
+			p.LogLevel = str
+		}
+	}
+	if filterText, exists := args["filter_text"]; exists {
+		if str, ok := filterText.(string); ok {
+			p.FilterText = str
+		}
+	}
+	if maxLines, exists := args["max_lines"]; exists {
+		if num, ok := maxLines.(float64); ok {
+			p.MaxLines = int(num)
+		}
+	}
+	if timeoutSecs, exists := args["timeout_secs"]; exists {
+		if num, ok := timeoutSecs.(float64); ok {
+			p.TimeoutSecs = int(num)
+		}
 	}
 
 	start := time.Now()
@@ -35,7 +116,12 @@ func (t *CaptureLogs) Execute(ctx context.Context, params json.RawMessage) (inte
 	if p.UDID == "" && p.DeviceType == "" {
 		simulator, err := selectBestSimulator("")
 		if err != nil {
-			return nil, fmt.Errorf("failed to auto-select device: %w", err)
+			result := &types.LogCaptureResult{
+				Success:  false,
+				Duration: time.Since(start),
+			}
+			resultJSON, _ := json.Marshal(result)
+			return string(resultJSON), fmt.Errorf("failed to auto-select device: %w", err)
 		}
 		p.UDID = simulator.UDID
 		p.DeviceType = simulator.DeviceType
@@ -51,14 +137,20 @@ func (t *CaptureLogs) Execute(ctx context.Context, params json.RawMessage) (inte
 
 	result, err := t.captureLogs(ctx, &p)
 	if err != nil {
-		return &types.LogCaptureResult{
+		errorResult := &types.LogCaptureResult{
 			Success:  false,
 			Duration: time.Since(start),
-		}, err
+		}
+		resultJSON, _ := json.Marshal(errorResult)
+		return string(resultJSON), err
 	}
 
 	result.Duration = time.Since(start)
-	return result, nil
+	resultJSON, err := json.Marshal(result)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal result: %w", err)
+	}
+	return string(resultJSON), nil
 }
 
 func (t *CaptureLogs) captureLogs(ctx context.Context, params *types.LogCaptureParams) (*types.LogCaptureResult, error) {
@@ -200,4 +292,5 @@ func (t *CaptureLogs) parseLogLine(line string, pattern *regexp.Regexp) *types.L
 		Message:   strings.TrimSpace(message),
 	}
 }
+
 

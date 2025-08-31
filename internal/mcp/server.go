@@ -228,6 +228,42 @@ func (s *Server) registerTools() error {
 		return fmt.Errorf("failed to register launch_app tool: %w", err)
 	}
 	
+	// Register list schemes tool
+	listSchemesTool := tools.NewListSchemes()
+	if err := s.registry.Register(listSchemesTool); err != nil {
+		return fmt.Errorf("failed to register list_schemes tool: %w", err)
+	}
+	
+	// Register capture logs tool
+	captureLogsTool := tools.NewCaptureLogs()
+	if err := s.registry.Register(captureLogsTool); err != nil {
+		return fmt.Errorf("failed to register capture_logs tool: %w", err)
+	}
+	
+	// Register screenshot tool
+	screenshotTool := tools.NewScreenshot()
+	if err := s.registry.Register(screenshotTool); err != nil {
+		return fmt.Errorf("failed to register screenshot tool: %w", err)
+	}
+	
+	// Register describe UI tool
+	describeUITool := tools.NewDescribeUI()
+	if err := s.registry.Register(describeUITool); err != nil {
+		return fmt.Errorf("failed to register describe_ui tool: %w", err)
+	}
+	
+	// Register UI interact tool
+	uiInteractTool := tools.NewUIInteract()
+	if err := s.registry.Register(uiInteractTool); err != nil {
+		return fmt.Errorf("failed to register ui_interact tool: %w", err)
+	}
+	
+	// Register get app info tool
+	getAppInfoTool := tools.NewGetAppInfo()
+	if err := s.registry.Register(getAppInfoTool); err != nil {
+		return fmt.Errorf("failed to register get_app_info tool: %w", err)
+	}
+	
 	s.logger.Printf("Registered %d tools successfully", s.registry.Count())
 	return nil
 }

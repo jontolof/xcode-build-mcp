@@ -13,20 +13,65 @@ import (
 	"github.com/jontolof/xcode-build-mcp/pkg/types"
 )
 
-type ListSchemes struct{}
+type ListSchemes struct {
+	name        string
+	description string
+	schema      map[string]interface{}
+}
+
+func NewListSchemes() *ListSchemes {
+	schema := createJSONSchema("object", map[string]interface{}{
+		"project_path": map[string]interface{}{
+			"type":        "string",
+			"description": "Path to the directory containing the Xcode project or workspace",
+		},
+		"workspace": map[string]interface{}{
+			"type":        "string",
+			"description": "Name of the .xcworkspace file (relative to project_path)",
+		},
+		"project": map[string]interface{}{
+			"type":        "string",
+			"description": "Name of the .xcodeproj file (relative to project_path)",
+		},
+	}, []string{})
+
+	return &ListSchemes{
+		name:        "list_schemes",
+		description: "List available build schemes from Xcode projects and workspaces with metadata and target information",
+		schema:      schema,
+	}
+}
 
 func (t *ListSchemes) Name() string {
-	return "list_schemes"
+	return t.name
 }
 
 func (t *ListSchemes) Description() string {
-	return "List available build schemes from Xcode projects and workspaces with metadata and target information"
+	return t.description
 }
 
-func (t *ListSchemes) Execute(ctx context.Context, params json.RawMessage) (interface{}, error) {
+func (t *ListSchemes) InputSchema() map[string]interface{} {
+	return t.schema
+}
+
+func (t *ListSchemes) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
 	var p types.SchemesListParams
-	if err := json.Unmarshal(params, &p); err != nil {
-		return nil, fmt.Errorf("invalid parameters: %w", err)
+	
+	// Parse parameters from args
+	if projectPath, exists := args["project_path"]; exists {
+		if str, ok := projectPath.(string); ok {
+			p.ProjectPath = str
+		}
+	}
+	if workspace, exists := args["workspace"]; exists {
+		if str, ok := workspace.(string); ok {
+			p.Workspace = str
+		}
+	}
+	if project, exists := args["project"]; exists {
+		if str, ok := project.(string); ok {
+			p.Project = str
+		}
 	}
 
 	start := time.Now()
@@ -35,24 +80,32 @@ func (t *ListSchemes) Execute(ctx context.Context, params json.RawMessage) (inte
 	if p.ProjectPath == "" && p.Workspace == "" && p.Project == "" {
 		projectPath, err := t.autoDetectProject()
 		if err != nil {
-			return &types.SchemesListResult{
+			result := &types.SchemesListResult{
 				Schemes:  []types.SchemeInfo{},
 				Duration: time.Since(start),
-			}, fmt.Errorf("failed to auto-detect project: %w", err)
+			}
+			resultJSON, _ := json.Marshal(result)
+			return string(resultJSON), fmt.Errorf("failed to auto-detect project: %w", err)
 		}
 		p.ProjectPath = projectPath
 	}
 
 	result, err := t.listSchemes(ctx, &p)
 	if err != nil {
-		return &types.SchemesListResult{
+		errorResult := &types.SchemesListResult{
 			Schemes:  []types.SchemeInfo{},
 			Duration: time.Since(start),
-		}, err
+		}
+		resultJSON, _ := json.Marshal(errorResult)
+		return string(resultJSON), err
 	}
 
 	result.Duration = time.Since(start)
-	return result, nil
+	resultJSON, err := json.Marshal(result)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal result: %w", err)
+	}
+	return string(resultJSON), nil
 }
 
 func (t *ListSchemes) listSchemes(ctx context.Context, params *types.SchemesListParams) (*types.SchemesListResult, error) {
@@ -326,3 +379,4 @@ func (t *ListSchemes) findProjectInPath(searchPath string) (workspace string, pr
 
 	return workspace, project, nil
 }
+

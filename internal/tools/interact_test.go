@@ -10,14 +10,14 @@ import (
 )
 
 func TestUIInteract_Name(t *testing.T) {
-	tool := &UIInteract{}
+	tool := NewUIInteract()
 	if got := tool.Name(); got != "ui_interact" {
 		t.Errorf("UIInteract.Name() = %v, want %v", got, "ui_interact")
 	}
 }
 
 func TestUIInteract_Description(t *testing.T) {
-	tool := &UIInteract{}
+	tool := NewUIInteract()
 	desc := tool.Description()
 	if desc == "" {
 		t.Error("UIInteract.Description() returned empty string")
@@ -28,21 +28,21 @@ func TestUIInteract_Description(t *testing.T) {
 }
 
 func TestUIInteract_Execute_InvalidParams(t *testing.T) {
-	tool := &UIInteract{}
+	tool := NewUIInteract()
 	ctx := context.Background()
 
-	// Test with invalid JSON
-	result, err := tool.Execute(ctx, json.RawMessage(`{"invalid": json}`))
+	// Test with empty params (no action specified)
+	result, err := tool.Execute(ctx, map[string]interface{}{})
 	if err == nil {
-		t.Error("Expected error for invalid JSON, got nil")
+		t.Error("Expected error for empty params, got nil")
 	}
-	if result != nil {
-		t.Errorf("Expected nil result for invalid params, got %+v", result)
+	if result == "" {
+		t.Error("Expected non-empty result string even on error")
 	}
 }
 
 func TestUIInteract_Execute_ValidParams(t *testing.T) {
-	tool := &UIInteract{}
+	tool := NewUIInteract()
 	ctx := context.Background()
 
 	params := types.UIInteractParams{
@@ -52,17 +52,24 @@ func TestUIInteract_Execute_ValidParams(t *testing.T) {
 		Timeout:     10,
 	}
 
-	paramsJSON, _ := json.Marshal(params)
-	result, err := tool.Execute(ctx, paramsJSON)
-
-	// Should get a result even if command fails
-	if result == nil {
-		t.Error("Expected non-nil result")
+	args := map[string]interface{}{
+		"udid": params.UDID,
+		"action": params.Action,
+		"x": params.Coordinates[0],
+		"y": params.Coordinates[1],
 	}
 
-	interactResult, ok := result.(*types.UIInteractResult)
-	if !ok {
-		t.Errorf("Expected *types.UIInteractResult, got %T", result)
+	result, err := tool.Execute(ctx, args)
+
+	// Should get a result string even if command fails
+	if result == "" {
+		t.Error("Expected non-empty result string")
+	}
+
+	// Parse JSON result
+	var interactResult types.UIInteractResult
+	if jsonErr := json.Unmarshal([]byte(result), &interactResult); jsonErr != nil {
+		t.Errorf("Failed to parse result JSON: %v", jsonErr)
 	}
 
 	if interactResult.Duration == 0 {
@@ -76,7 +83,7 @@ func TestUIInteract_Execute_ValidParams(t *testing.T) {
 }
 
 func TestUIInteract_Execute_DefaultTimeout(t *testing.T) {
-	tool := &UIInteract{}
+	tool := NewUIInteract()
 	ctx := context.Background()
 
 	// Test with minimal params (no timeout specified)
@@ -85,16 +92,21 @@ func TestUIInteract_Execute_DefaultTimeout(t *testing.T) {
 		Action: "home",
 	}
 
-	paramsJSON, _ := json.Marshal(params)
-	result, err := tool.Execute(ctx, paramsJSON)
-
-	if result == nil {
-		t.Error("Expected non-nil result")
+	args := map[string]interface{}{
+		"udid": params.UDID,
+		"action": params.Action,
 	}
 
-	interactResult, ok := result.(*types.UIInteractResult)
-	if !ok {
-		t.Errorf("Expected *types.UIInteractResult, got %T", result)
+	result, err := tool.Execute(ctx, args)
+
+	if result == "" {
+		t.Error("Expected non-empty result string")
+	}
+
+	// Parse JSON result
+	var interactResult types.UIInteractResult
+	if jsonErr := json.Unmarshal([]byte(result), &interactResult); jsonErr != nil {
+		t.Errorf("Failed to parse result JSON: %v", jsonErr)
 	}
 
 	// Should have applied default timeout
@@ -109,7 +121,7 @@ func TestUIInteract_Execute_DefaultTimeout(t *testing.T) {
 }
 
 func TestUIInteract_GetSwipeDirection(t *testing.T) {
-	tool := &UIInteract{}
+	tool := NewUIInteract()
 
 	tests := []struct {
 		startX, startY, endX, endY float64
@@ -135,7 +147,7 @@ func TestUIInteract_GetSwipeDirection(t *testing.T) {
 }
 
 func TestUIInteract_PerformTap_Coordinates(t *testing.T) {
-	tool := &UIInteract{}
+	tool := NewUIInteract()
 	ctx := context.Background()
 
 	params := &types.UIInteractParams{
@@ -162,7 +174,7 @@ func TestUIInteract_PerformTap_Coordinates(t *testing.T) {
 }
 
 func TestUIInteract_PerformTap_Target(t *testing.T) {
-	tool := &UIInteract{}
+	tool := NewUIInteract()
 	ctx := context.Background()
 
 	params := &types.UIInteractParams{
@@ -185,7 +197,7 @@ func TestUIInteract_PerformTap_Target(t *testing.T) {
 }
 
 func TestUIInteract_PerformTap_InvalidParams(t *testing.T) {
-	tool := &UIInteract{}
+	tool := NewUIInteract()
 	ctx := context.Background()
 
 	// Test tap without coordinates or target
@@ -206,7 +218,7 @@ func TestUIInteract_PerformTap_InvalidParams(t *testing.T) {
 }
 
 func TestUIInteract_PerformSwipe_ValidParams(t *testing.T) {
-	tool := &UIInteract{}
+	tool := NewUIInteract()
 	ctx := context.Background()
 
 	params := &types.UIInteractParams{
@@ -228,7 +240,7 @@ func TestUIInteract_PerformSwipe_ValidParams(t *testing.T) {
 }
 
 func TestUIInteract_PerformSwipe_InvalidParams(t *testing.T) {
-	tool := &UIInteract{}
+	tool := NewUIInteract()
 	ctx := context.Background()
 
 	// Test swipe with insufficient coordinates
@@ -251,7 +263,7 @@ func TestUIInteract_PerformSwipe_InvalidParams(t *testing.T) {
 }
 
 func TestUIInteract_PerformType_ValidParams(t *testing.T) {
-	tool := &UIInteract{}
+	tool := NewUIInteract()
 	ctx := context.Background()
 
 	params := &types.UIInteractParams{
@@ -273,7 +285,7 @@ func TestUIInteract_PerformType_ValidParams(t *testing.T) {
 }
 
 func TestUIInteract_PerformType_InvalidParams(t *testing.T) {
-	tool := &UIInteract{}
+	tool := NewUIInteract()
 	ctx := context.Background()
 
 	// Test type without text
@@ -296,7 +308,7 @@ func TestUIInteract_PerformType_InvalidParams(t *testing.T) {
 }
 
 func TestUIInteract_PerformRotate_ValidParams(t *testing.T) {
-	tool := &UIInteract{}
+	tool := NewUIInteract()
 	ctx := context.Background()
 
 	params := &types.UIInteractParams{
@@ -320,7 +332,7 @@ func TestUIInteract_PerformRotate_ValidParams(t *testing.T) {
 }
 
 func TestUIInteract_SupportedActions(t *testing.T) {
-	tool := &UIInteract{}
+	tool := NewUIInteract()
 	ctx := context.Background()
 
 	supportedActions := []string{
@@ -363,7 +375,7 @@ func TestUIInteract_SupportedActions(t *testing.T) {
 }
 
 func TestUIInteract_UnsupportedAction(t *testing.T) {
-	tool := &UIInteract{}
+	tool := NewUIInteract()
 	ctx := context.Background()
 
 	params := &types.UIInteractParams{
@@ -384,7 +396,7 @@ func TestUIInteract_UnsupportedAction(t *testing.T) {
 }
 
 func TestUIInteract_MissingAction(t *testing.T) {
-	tool := &UIInteract{}
+	tool := NewUIInteract()
 	ctx := context.Background()
 
 	params := &types.UIInteractParams{
@@ -404,7 +416,7 @@ func TestUIInteract_MissingAction(t *testing.T) {
 }
 
 func TestUIInteract_MissingUDID(t *testing.T) {
-	tool := &UIInteract{}
+	tool := NewUIInteract()
 	ctx := context.Background()
 
 	params := &types.UIInteractParams{

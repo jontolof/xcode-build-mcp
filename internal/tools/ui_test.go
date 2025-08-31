@@ -10,14 +10,14 @@ import (
 )
 
 func TestDescribeUI_Name(t *testing.T) {
-	tool := &DescribeUI{}
+	tool := NewDescribeUI()
 	if got := tool.Name(); got != "describe_ui" {
 		t.Errorf("DescribeUI.Name() = %v, want %v", got, "describe_ui")
 	}
 }
 
 func TestDescribeUI_Description(t *testing.T) {
-	tool := &DescribeUI{}
+	tool := NewDescribeUI()
 	desc := tool.Description()
 	if desc == "" {
 		t.Error("DescribeUI.Description() returned empty string")
@@ -28,41 +28,40 @@ func TestDescribeUI_Description(t *testing.T) {
 }
 
 func TestDescribeUI_Execute_InvalidParams(t *testing.T) {
-	tool := &DescribeUI{}
+	tool := NewDescribeUI()
 	ctx := context.Background()
 
 	// Test with invalid JSON
-	result, err := tool.Execute(ctx, json.RawMessage(`{"invalid": json}`))
+	result, err := tool.Execute(ctx, map[string]interface{}{})
 	if err == nil {
 		t.Error("Expected error for invalid JSON, got nil")
 	}
-	if result != nil {
+	if result != "" {
 		t.Errorf("Expected nil result for invalid params, got %+v", result)
 	}
 }
 
 func TestDescribeUI_Execute_ValidParams(t *testing.T) {
-	tool := &DescribeUI{}
+	tool := NewDescribeUI()
 	ctx := context.Background()
 
-	params := types.UIDescribeParams{
-		UDID:        "test-udid",
-		Format:      "tree",
-		MaxDepth:    5,
-		IncludeText: true,
-	}
-
-	paramsJSON, _ := json.Marshal(params)
-	result, err := tool.Execute(ctx, paramsJSON)
+	resultStr, execErr := tool.Execute(ctx, map[string]interface{}{
+		"udid":         "test-udid",
+		"format":       "tree",
+		"max_depth":    5,
+		"include_text": true,
+	})
 
 	// Should get a result even if command fails
-	if result == nil {
-		t.Error("Expected non-nil result")
+	if resultStr == "" {
+		t.Error("Expected non-empty result")
 	}
 
-	uiResult, ok := result.(*types.UIDescribeResult)
-	if !ok {
-		t.Errorf("Expected *types.UIDescribeResult, got %T", result)
+	// Parse the JSON result
+	var uiResult types.UIDescribeResult
+	err := json.Unmarshal([]byte(resultStr), &uiResult)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal result: %v", err)
 	}
 
 	if uiResult.Duration == 0 {
@@ -70,30 +69,29 @@ func TestDescribeUI_Execute_ValidParams(t *testing.T) {
 	}
 
 	// The command will likely fail in test environment, but that's expected
-	if err != nil && uiResult.Success {
+	if execErr != nil && uiResult.Success {
 		t.Error("If there's an error, Success should be false")
 	}
 }
 
 func TestDescribeUI_Execute_DefaultValues(t *testing.T) {
-	tool := &DescribeUI{}
+	tool := NewDescribeUI()
 	ctx := context.Background()
 
 	// Test with minimal params
-	params := types.UIDescribeParams{
-		UDID: "test-udid",
+	resultStr, execErr := tool.Execute(ctx, map[string]interface{}{
+		"udid": "test-udid",
+	})
+
+	if resultStr == "" {
+		t.Error("Expected non-empty result")
 	}
 
-	paramsJSON, _ := json.Marshal(params)
-	result, err := tool.Execute(ctx, paramsJSON)
-
-	if result == nil {
-		t.Error("Expected non-nil result")
-	}
-
-	uiResult, ok := result.(*types.UIDescribeResult)
-	if !ok {
-		t.Errorf("Expected *types.UIDescribeResult, got %T", result)
+	// Parse the JSON result
+	var uiResult types.UIDescribeResult
+	err := json.Unmarshal([]byte(resultStr), &uiResult)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal result: %v", err)
 	}
 
 	// Should have applied defaults
@@ -102,13 +100,13 @@ func TestDescribeUI_Execute_DefaultValues(t *testing.T) {
 	}
 
 	// Command will likely fail without real simulator, but structure should be correct
-	if err != nil && uiResult.Success {
+	if execErr != nil && uiResult.Success {
 		t.Error("If there's an error, Success should be false")
 	}
 }
 
 func TestDescribeUI_GenerateMockJSONHierarchy(t *testing.T) {
-	tool := &DescribeUI{}
+	tool := NewDescribeUI()
 
 	// Test JSON hierarchy generation
 	jsonData := tool.generateMockJSONHierarchy(false, 5)
@@ -135,7 +133,7 @@ func TestDescribeUI_GenerateMockJSONHierarchy(t *testing.T) {
 }
 
 func TestDescribeUI_GenerateMockTextHierarchy(t *testing.T) {
-	tool := &DescribeUI{}
+	tool := NewDescribeUI()
 
 	tests := []struct {
 		format      string
@@ -175,7 +173,7 @@ func TestDescribeUI_GenerateMockTextHierarchy(t *testing.T) {
 }
 
 func TestDescribeUI_CountElementsInJSON(t *testing.T) {
-	tool := &DescribeUI{}
+	tool := NewDescribeUI()
 
 	jsonData := `{"type": "Application", "children": [{"type": "Button"}, {"type": "Label"}]}`
 	count := tool.countElementsInJSON(jsonData)
@@ -187,7 +185,7 @@ func TestDescribeUI_CountElementsInJSON(t *testing.T) {
 }
 
 func TestDescribeUI_CountElementsInText(t *testing.T) {
-	tool := &DescribeUI{}
+	tool := NewDescribeUI()
 
 	textData := `Application [0,0,375,812]
 Button [0,0,60,30]
@@ -203,7 +201,7 @@ Label [0,40,100,20]`
 }
 
 func TestDescribeUI_AddTextToHierarchy(t *testing.T) {
-	tool := &DescribeUI{}
+	tool := NewDescribeUI()
 
 	hierarchy := map[string]interface{}{
 		"type": "Application",
@@ -226,7 +224,7 @@ func TestDescribeUI_AddTextToHierarchy(t *testing.T) {
 }
 
 func TestDescribeUI_FormatValidation(t *testing.T) {
-	tool := &DescribeUI{}
+	tool := NewDescribeUI()
 
 	// Test unsupported format
 	params := &types.UIDescribeParams{
@@ -300,23 +298,36 @@ func TestDescribeUI_ParameterValidation(t *testing.T) {
 		},
 	}
 
-	tool := &DescribeUI{}
+	tool := NewDescribeUI()
 	ctx := context.Background()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			paramsJSON, _ := json.Marshal(tt.params)
-			result, err := tool.Execute(ctx, paramsJSON)
+			args := map[string]interface{}{}
+			if tt.params.UDID != "" {
+				args["udid"] = tt.params.UDID
+			}
+			if tt.params.Format != "" {
+				args["format"] = tt.params.Format
+			}
+			if tt.params.MaxDepth > 0 {
+				args["max_depth"] = tt.params.MaxDepth
+			}
+			if tt.params.IncludeText {
+				args["include_text"] = tt.params.IncludeText
+			}
+			
+			resultStr, execErr := tool.Execute(ctx, args)
 
 			if tt.valid {
-				if result == nil {
-					t.Error("Expected non-nil result for valid params")
+				if resultStr == "" {
+					t.Error("Expected non-empty result for valid params")
 				}
 			} else {
 				// For invalid params, we might still get a result but with an error
-				if err == nil && result != nil {
-					uiResult, ok := result.(*types.UIDescribeResult)
-					if ok && uiResult.Success {
+				if execErr == nil && resultStr != "" {
+					var uiResult types.UIDescribeResult
+					if json.Unmarshal([]byte(resultStr), &uiResult) == nil && uiResult.Success {
 						t.Error("Expected failure for invalid params")
 					}
 				}

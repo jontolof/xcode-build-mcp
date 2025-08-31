@@ -10,14 +10,14 @@ import (
 )
 
 func TestCaptureLogs_Name(t *testing.T) {
-	tool := &CaptureLogs{}
+	tool := NewCaptureLogs()
 	if got := tool.Name(); got != "capture_logs" {
 		t.Errorf("CaptureLogs.Name() = %v, want %v", got, "capture_logs")
 	}
 }
 
 func TestCaptureLogs_Description(t *testing.T) {
-	tool := &CaptureLogs{}
+	tool := NewCaptureLogs()
 	desc := tool.Description()
 	if desc == "" {
 		t.Error("CaptureLogs.Description() returned empty string")
@@ -28,40 +28,38 @@ func TestCaptureLogs_Description(t *testing.T) {
 }
 
 func TestCaptureLogs_Execute_InvalidParams(t *testing.T) {
-	tool := &CaptureLogs{}
+	tool := NewCaptureLogs()
 	ctx := context.Background()
 
-	// Test with invalid JSON
-	result, err := tool.Execute(ctx, json.RawMessage(`{"invalid": json}`))
-	if err == nil {
-		t.Error("Expected error for invalid JSON, got nil")
-	}
-	if result != nil {
-		t.Errorf("Expected nil result for invalid params, got %+v", result)
+	// Test with empty params (no device specified)
+	result, _ := tool.Execute(ctx, map[string]interface{}{})
+	// This might succeed due to auto-selection, so just check for string result
+	if result == "" {
+		t.Error("Expected non-empty result string")
 	}
 }
 
 func TestCaptureLogs_Execute_ValidParams(t *testing.T) {
-	tool := &CaptureLogs{}
+	tool := NewCaptureLogs()
 	ctx := context.Background()
 
-	params := types.LogCaptureParams{
-		UDID:        "test-udid",
-		MaxLines:    10,
-		TimeoutSecs: 1, // Short timeout for test
+	args := map[string]interface{}{
+		"udid": "test-udid",
+		"max_lines": 10,
+		"timeout_secs": 1, // Short timeout for test
 	}
 
-	paramsJSON, _ := json.Marshal(params)
-	result, err := tool.Execute(ctx, paramsJSON)
+	result, err := tool.Execute(ctx, args)
 
-	// Should get a result even if command fails
-	if result == nil {
-		t.Error("Expected non-nil result")
+	// Should get a result string even if command fails
+	if result == "" {
+		t.Error("Expected non-empty result string")
 	}
 
-	logResult, ok := result.(*types.LogCaptureResult)
-	if !ok {
-		t.Errorf("Expected *types.LogCaptureResult, got %T", result)
+	// Parse JSON result
+	var logResult types.LogCaptureResult
+	if jsonErr := json.Unmarshal([]byte(result), &logResult); jsonErr != nil {
+		t.Errorf("Failed to parse result JSON: %v", jsonErr)
 	}
 
 	if logResult.Duration == 0 {
@@ -75,24 +73,24 @@ func TestCaptureLogs_Execute_ValidParams(t *testing.T) {
 }
 
 func TestCaptureLogs_Execute_DefaultValues(t *testing.T) {
-	tool := &CaptureLogs{}
+	tool := NewCaptureLogs()
 	ctx := context.Background()
 
 	// Test with minimal params
-	params := types.LogCaptureParams{
-		UDID: "test-udid",
+	args := map[string]interface{}{
+		"udid": "test-udid",
 	}
 
-	paramsJSON, _ := json.Marshal(params)
-	result, err := tool.Execute(ctx, paramsJSON)
+	result, err := tool.Execute(ctx, args)
 
-	if result == nil {
-		t.Error("Expected non-nil result")
+	if result == "" {
+		t.Error("Expected non-empty result string")
 	}
 
-	logResult, ok := result.(*types.LogCaptureResult)
-	if !ok {
-		t.Errorf("Expected *types.LogCaptureResult, got %T", result)
+	// Parse JSON result
+	var logResult types.LogCaptureResult
+	if jsonErr := json.Unmarshal([]byte(result), &logResult); jsonErr != nil {
+		t.Errorf("Failed to parse result JSON: %v", jsonErr)
 	}
 
 	// Should have applied defaults
@@ -107,7 +105,7 @@ func TestCaptureLogs_Execute_DefaultValues(t *testing.T) {
 }
 
 func TestCaptureLogs_ParseLogLine(t *testing.T) {
-	tool := &CaptureLogs{}
+	tool := NewCaptureLogs()
 	pattern := regexp.MustCompile(`^(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\.\d+[+-]\d{4})\s+(\w+)\s+(\w+)\s+(\[.*?\])?\s*(.*)$`)
 
 	tests := []struct {
@@ -237,23 +235,37 @@ func TestCaptureLogs_ParameterValidation(t *testing.T) {
 		},
 	}
 
-	tool := &CaptureLogs{}
+	tool := NewCaptureLogs()
 	ctx := context.Background()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			paramsJSON, _ := json.Marshal(tt.params)
-			result, err := tool.Execute(ctx, paramsJSON)
+			// Convert params to args map
+			args := map[string]interface{}{}
+			if tt.params.UDID != "" {
+				args["udid"] = tt.params.UDID
+			}
+			if tt.params.DeviceType != "" {
+				args["device_type"] = tt.params.DeviceType
+			}
+			if tt.params.LogLevel != "" {
+				args["log_level"] = tt.params.LogLevel
+			}
+			if tt.params.MaxLines != 0 {
+				args["max_lines"] = tt.params.MaxLines
+			}
+
+			result, err := tool.Execute(ctx, args)
 			_ = err // May or may not have error depending on environment
 
 			if tt.valid {
-				if result == nil {
-					t.Error("Expected non-nil result for valid params")
+				if result == "" {
+					t.Error("Expected non-empty result for valid params")
 				}
 			} else {
 				// For invalid params, we might get success (if auto-selection works) or failure
 				// Both are acceptable depending on environment
-				if result == nil {
+				if result == "" {
 					t.Error("Expected non-nil result")
 				}
 			}
