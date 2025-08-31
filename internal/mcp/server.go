@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	
 	"github.com/jontolof/xcode-build-mcp/internal/tools"
 	"github.com/jontolof/xcode-build-mcp/internal/xcode"
@@ -51,30 +52,46 @@ func (s *Server) Run(ctx context.Context, transportType string) error {
 }
 
 func (s *Server) serve(ctx context.Context) error {
-	s.logger.Println("MCP server starting...")
+	// Only log in debug mode
+	if os.Getenv("MCP_LOG_LEVEL") == "debug" {
+		s.logger.Println("MCP server starting...")
+	}
 
 	for {
 		select {
 		case <-ctx.Done():
-			s.logger.Println("Server context cancelled")
+			// Only log in debug mode
+			if os.Getenv("MCP_LOG_LEVEL") == "debug" {
+				s.logger.Println("Server context cancelled")
+			}
 			return nil
 		default:
 			request, err := s.transport.ReadRequest()
 			if err != nil {
+				// Check if the connection was closed - this is normal behavior
+				if err.Error() == "connection closed" {
+					// Don't log in normal operation, just exit gracefully
+					return nil
+				}
 				s.logger.Printf("Failed to read request: %v", err)
-				continue
+				// For other errors, return to avoid infinite loop
+				return err
 			}
 
 			response := s.handleRequest(ctx, request)
 			if err := s.transport.WriteResponse(response); err != nil {
 				s.logger.Printf("Failed to write response: %v", err)
+				return err
 			}
 		}
 	}
 }
 
 func (s *Server) handleRequest(ctx context.Context, req *Request) *Response {
-	s.logger.Printf("Handling request: %s (ID: %v)", req.Method, req.ID)
+	// Only log in debug mode
+	if os.Getenv("MCP_LOG_LEVEL") == "debug" {
+		s.logger.Printf("Handling request: %s (ID: %v)", req.Method, req.ID)
+	}
 
 	switch req.Method {
 	case "initialize":
@@ -264,6 +281,9 @@ func (s *Server) registerTools() error {
 		return fmt.Errorf("failed to register get_app_info tool: %w", err)
 	}
 	
-	s.logger.Printf("Registered %d tools successfully", s.registry.Count())
+	// Only log in debug mode
+	if os.Getenv("MCP_LOG_LEVEL") == "debug" {
+		s.logger.Printf("Registered %d tools successfully", s.registry.Count())
+	}
 	return nil
 }

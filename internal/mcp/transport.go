@@ -38,7 +38,8 @@ func (t *StdioTransport) ReadRequest() (*Request, error) {
 		return nil, fmt.Errorf("failed to read line: %w", err)
 	}
 
-	if t.logger != nil {
+	// Only log in debug mode
+	if t.logger != nil && os.Getenv("MCP_LOG_LEVEL") == "debug" {
 		t.logger.Printf("Received: %s", string(line))
 	}
 
@@ -56,7 +57,8 @@ func (t *StdioTransport) WriteResponse(resp *Response) error {
 		return fmt.Errorf("failed to marshal response: %w", err)
 	}
 
-	if t.logger != nil {
+	// Only log in debug mode
+	if t.logger != nil && os.Getenv("MCP_LOG_LEVEL") == "debug" {
 		t.logger.Printf("Sending: %s", string(data))
 	}
 

@@ -52,7 +52,10 @@ func main() {
 		logger.Fatalf("Server failed: %v", err)
 	}
 
-	logger.Println("Server shutdown complete")
+	// Only log shutdown in debug mode
+	if *logLevel == "debug" {
+		logger.Println("Server shutdown complete")
+	}
 }
 
 func setupLogger(level string) *log.Logger {
