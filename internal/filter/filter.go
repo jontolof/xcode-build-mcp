@@ -2,8 +2,13 @@ package filter
 
 import (
 	"bufio"
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 )
 
 type OutputMode string
@@ -30,9 +35,11 @@ type FilterRule struct {
 }
 
 type Filter struct {
-	rules []FilterRule
-	mode  OutputMode
-	stats *FilterStats
+	rules     []FilterRule
+	mode      OutputMode
+	stats     *FilterStats
+	debugMode bool
+	debugFile *os.File
 }
 
 type FilterStats struct {
@@ -44,16 +51,48 @@ type FilterStats struct {
 }
 
 func NewFilter(mode OutputMode) *Filter {
-	return &Filter{
+	f := &Filter{
 		rules: getDefaultRules(),
 		mode:  mode,
 		stats: &FilterStats{
 			RulesApplied: make(map[string]int),
 		},
+		debugMode: os.Getenv("MCP_FILTER_DEBUG") == "true",
 	}
+	
+	// Enable debug logging if requested
+	if f.debugMode {
+		logDir := os.Getenv("MCP_FILTER_DEBUG_DIR")
+		if logDir == "" {
+			logDir = "/tmp"
+		}
+		timestamp := time.Now().Format("20060102_150405")
+		logFile := filepath.Join(logDir, fmt.Sprintf("mcp_filter_%s_%s.log", mode, timestamp))
+		
+		if file, err := os.Create(logFile); err == nil {
+			f.debugFile = file
+			f.logDebug("=== Filter Debug Log Started ===")
+			f.logDebug("Mode: %s", mode)
+			f.logDebug("Time: %s", time.Now().Format(time.RFC3339))
+			log.Printf("Filter debug logging to: %s", logFile)
+		}
+	}
+	
+	return f
 }
 
 func (f *Filter) Filter(output string) string {
+	// Log input stats for debugging
+	if f.debugMode {
+		f.logDebug("=== Filter Input Stats ===")
+		f.logDebug("Mode: %s", f.mode)
+		f.logDebug("Total input length: %d chars", len(output))
+		f.logDebug("Estimated input tokens: %d", len(output)/4)
+		lines := strings.Count(output, "\n")
+		f.logDebug("Total input lines: %d", lines)
+		f.logDebug("First 1000 chars: %s", f.truncateString(output, 1000))
+	}
+	
 	if f.mode == Verbose {
 		// Even verbose mode needs limits to prevent token overflow
 		return f.filterVerbose(output)
@@ -76,18 +115,20 @@ func (f *Filter) Filter(output string) string {
 		LastLineWasEmpty: false,
 	}
 
-	// Set line limits based on mode to prevent token overflow
+	// Set limits based on mode to prevent token overflow
 	maxLines := f.getMaxLinesForMode()
+	maxChars := f.getMaxCharsForMode()
+	totalCharsWritten := 0
 
 	for scanner.Scan() {
 		line := scanner.Text()
 		f.stats.TotalLines++
 
-		// Hard limit to prevent token overflow
-		if f.stats.KeptLines >= maxLines {
-			result.WriteString("\n... (output truncated at ")
-			result.WriteString(string(f.mode))
-			result.WriteString(" mode limit)\n")
+		// Check both line and character limits
+		if f.stats.KeptLines >= maxLines || totalCharsWritten >= maxChars {
+			truncMsg := fmt.Sprintf("\n... (output truncated: %d/%d lines, %d chars max)\n",
+				f.stats.KeptLines, f.stats.TotalLines, maxChars)
+			result.WriteString(truncMsg)
 			break
 		}
 
@@ -99,13 +140,43 @@ func (f *Filter) Filter(output string) string {
 
 		switch action {
 		case Keep:
-			// Additional length check for very long lines
-			if len(line) > 500 && f.mode != Verbose {
-				line = line[:500] + "..."
+			// Check char limit FIRST, before any writing
+			lineToWrite := line
+			cleanLine := strings.TrimSpace(line)
+			
+			// Handle empty lines
+			if cleanLine == "" {
+				// Check if even a newline would exceed limit
+				if totalCharsWritten + 1 > maxChars {
+					truncMsg := fmt.Sprintf("\n... (char limit reached: %d chars)\n", maxChars)
+					result.WriteString(truncMsg)
+					break
+				}
+				result.WriteString("\n")
+				totalCharsWritten++
+				continue // Don't count toward line limit, but we DID check char limit
 			}
-			result.WriteString(line)
+			
+			// Strict length check for very long lines
+			maxLineLength := 200
+			if f.mode == Verbose {
+				maxLineLength = 500
+			}
+			if len(lineToWrite) > maxLineLength {
+				lineToWrite = lineToWrite[:maxLineLength] + "..."
+			}
+			
+			// Check if adding this line would exceed char limit
+			if totalCharsWritten + len(lineToWrite) + 1 > maxChars {
+				truncMsg := fmt.Sprintf("\n... (char limit reached: %d chars)\n", maxChars)
+				result.WriteString(truncMsg)
+				break
+			}
+			
+			result.WriteString(lineToWrite)
 			result.WriteString("\n")
 			f.stats.KeptLines++
+			totalCharsWritten += len(lineToWrite) + 1
 		case Remove:
 			f.stats.FilteredLines++
 		case Summarize:
@@ -117,19 +188,76 @@ func (f *Filter) Filter(output string) string {
 		}
 	}
 
-	return result.String()
+	finalOutput := result.String()
+	
+	// Log final stats
+	if f.debugMode {
+		f.logDebug("=== Filter Output Stats ===")
+		f.logDebug("Input lines: %d", f.stats.TotalLines)
+		f.logDebug("Output lines: %d", f.stats.KeptLines)
+		f.logDebug("Filtered lines: %d", f.stats.FilteredLines)
+		f.logDebug("Output length: %d chars", len(finalOutput))
+		f.logDebug("Estimated output tokens: %d", len(finalOutput)/4)
+		if len(output) > 0 {
+			reduction := (1.0 - float64(len(finalOutput))/float64(len(output)))*100
+			f.logDebug("Reduction: %.1f%%", reduction)
+		}
+		f.logDebug("First 1000 chars of output: %s", f.truncateString(finalOutput, 1000))
+		f.logDebug("=== End Filter ===")
+	}
+	
+	return finalOutput
+}
+
+// logDebug writes to debug file if enabled
+func (f *Filter) logDebug(format string, args ...interface{}) {
+	if f.debugFile != nil {
+		msg := fmt.Sprintf(format, args...)
+		fmt.Fprintf(f.debugFile, "[%s] %s\n", time.Now().Format("15:04:05.000"), msg)
+		f.debugFile.Sync() // Ensure it's written immediately
+	}
+}
+
+// truncateString safely truncates a string for logging
+func (f *Filter) truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
+}
+
+// Close cleans up the debug file if open
+func (f *Filter) Close() {
+	if f.debugFile != nil {
+		f.debugFile.Close()
+		f.debugFile = nil
+	}
 }
 
 func (f *Filter) getMaxLinesForMode() int {
 	switch f.mode {
 	case Minimal:
-		return 20 // ~500 tokens max
+		return 10 // Drastically reduced: ~250 tokens max
 	case Standard:
-		return 200 // ~5000 tokens max
+		return 50 // Reduced from 200: ~1250 tokens max
 	case Verbose:
-		return 800 // ~20000 tokens max
+		return 200 // Reduced from 800: ~5000 tokens max
 	default:
-		return 200
+		return 50
+	}
+}
+
+// getMaxCharsForMode returns character limit to prevent token overflow
+func (f *Filter) getMaxCharsForMode() int {
+	switch f.mode {
+	case Minimal:
+		return 1000 // VERY strict: ~250 tokens max
+	case Standard:
+		return 5000 // Strict: ~1250 tokens max
+	case Verbose:
+		return 20000 // Limited: ~5000 tokens max
+	default:
+		return 5000
 	}
 }
 
@@ -172,17 +300,9 @@ func (f *Filter) filterVerbose(output string) string {
 func (f *Filter) evaluateLine(line string, context *FilterContext) FilterAction {
 	cleanLine := strings.TrimSpace(line)
 
-	// Empty lines - remove in minimal mode, keep sparingly in other modes
+	// Empty lines - always remove, we'll handle spacing in output
 	if cleanLine == "" {
-		if f.mode == Minimal {
-			return Remove
-		}
-		// In standard/verbose mode, keep some spacing but not all
-		if context.LastLineWasEmpty {
-			return Remove // Don't keep consecutive empty lines
-		}
-		context.LastLineWasEmpty = true
-		return Keep
+		return Remove
 	}
 	context.LastLineWasEmpty = false
 
@@ -287,6 +407,24 @@ func (f *Filter) evaluateStandardMode(line string, context *FilterContext) Filte
 	// Keep important configuration
 	if strings.Contains(line, "scheme:") || strings.Contains(line, "destination:") {
 		f.recordRuleUsage("config-keep")
+		return Keep
+	}
+	
+	// Keep package resolution info (important for debugging)
+	if strings.Contains(line, "Resolve Package") || strings.Contains(line, "Resolved source packages") {
+		f.recordRuleUsage("package-keep")
+		return Keep
+	}
+	
+	// Keep command invocation
+	if strings.Contains(line, "Command line invocation") || strings.Contains(line, "/xcodebuild") {
+		f.recordRuleUsage("command-keep")
+		return Keep
+	}
+	
+	// Keep important metadata  
+	if strings.Contains(line, "appintentsmetadataprocessor") && strings.Contains(line, "warning") {
+		f.recordRuleUsage("metadata-warning-keep")
 		return Keep
 	}
 

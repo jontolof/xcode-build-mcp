@@ -320,10 +320,8 @@ func (t *XcodeBuildTool) formatBuildResponse(result *types.BuildResult, filter *
 		response["build_settings"] = result.BuildSettings
 	}
 
-	// Include full output in verbose mode or if build failed
-	if !result.Success || len(result.FilteredOutput) < 1000 {
-		response["full_output"] = result.Output
-	}
+	// NEVER include full output - it defeats the entire purpose of filtering!
+	// The filtered output already contains all critical information including errors
 
 	jsonData, err := json.MarshalIndent(response, "", "  ")
 	if err != nil {
