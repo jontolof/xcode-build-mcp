@@ -73,6 +73,26 @@ func (t *InstallAppTool) Execute(ctx context.Context, args map[string]interface{
 
 	start := time.Now()
 
+	// Smart path resolution for "." or directory paths
+	if params.AppPath == "." || params.AppPath == "./" {
+		appPath, err := t.findAppBundle(".")
+		if err != nil {
+			return "", fmt.Errorf("no .app bundle found in current directory. Build your project first with xcode_build, then specify the exact path to the .app bundle")
+		}
+		params.AppPath = appPath
+		t.logger.Printf("Auto-detected app bundle: %s", appPath)
+	}
+
+	// Validate it's actually a .app bundle
+	if !strings.HasSuffix(params.AppPath, ".app") {
+		return "", fmt.Errorf("invalid app path: %s. Must be a .app bundle, not a directory", params.AppPath)
+	}
+
+	// Debug logging if enabled
+	if os.Getenv("MCP_DEBUG") == "true" {
+		fmt.Printf("DEBUG: install_app called with params: %+v\n", params)
+	}
+
 	t.logger.Printf("Installing app %s", params.AppPath)
 
 	// Validate app path exists
@@ -168,6 +188,34 @@ func (t *InstallAppTool) parseParams(args map[string]interface{}) (*types.AppIns
 	params.Replace = parseBoolParam(args, "replace", true)
 
 	return params, nil
+}
+
+// findAppBundle searches for .app bundles in common build directories
+func (t *InstallAppTool) findAppBundle(dir string) (string, error) {
+	// Look in common build output directories
+	searchPaths := []string{
+		"build/Debug-iphonesimulator/*.app",
+		"build/Release-iphonesimulator/*.app",
+		"DerivedData/*/Build/Products/Debug-iphonesimulator/*.app",
+		"DerivedData/*/Build/Products/Release-iphonesimulator/*.app",
+		"*.app",
+	}
+
+	for _, pattern := range searchPaths {
+		fullPattern := filepath.Join(dir, pattern)
+		matches, err := filepath.Glob(fullPattern)
+		if err == nil && len(matches) > 0 {
+			// Return the first match, preferring Debug over Release
+			for _, match := range matches {
+				if strings.Contains(match, "Debug") {
+					return match, nil
+				}
+			}
+			return matches[0], nil
+		}
+	}
+
+	return "", fmt.Errorf("no .app bundle found in build directories")
 }
 
 func (t *InstallAppTool) selectBestDevice(ctx context.Context, deviceTypeFilter string) (string, error) {

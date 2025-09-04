@@ -281,7 +281,7 @@ func (t *XcodeBuildTool) parseParams(args map[string]interface{}) (*types.BuildP
 	return params, nil
 }
 
-func (t *XcodeBuildTool) formatBuildResponse(result *types.BuildResult, filter *filter.Filter) (string, error) {
+func (t *XcodeBuildTool) formatBuildResponse(result *types.BuildResult, outputFilter *filter.Filter) (string, error) {
 	response := map[string]interface{}{
 		"success":         result.Success,
 		"duration":        result.Duration.String(),
@@ -289,13 +289,32 @@ func (t *XcodeBuildTool) formatBuildResponse(result *types.BuildResult, filter *
 		"filtered_output": result.FilteredOutput,
 	}
 
+	// ALWAYS include a summary message
+	if result.FilteredOutput == "" || len(result.FilteredOutput) < 100 {
+		if result.Success {
+			response["summary"] = "Build completed successfully (output was filtered)"
+		} else {
+			response["summary"] = fmt.Sprintf("Build FAILED with exit code %d (check errors in output)", result.ExitCode)
+		}
+	}
+	
+	// If verbose mode and output is suspiciously small, add a note
+	stats := outputFilter.GetStats()
+	if len(result.FilteredOutput) < 1000 && stats.TotalLines > 50 {
+		response["note"] = "Output appears truncated. Enable MCP_FILTER_DEBUG=true to investigate"
+	}
+
+	// Add debug hint when builds seem to fail silently
+	if !result.Success && len(result.FilteredOutput) < 500 {
+		response["debug_hint"] = "Build failed with minimal output. Try: 1) Check if project exists, 2) Verify scheme name, 3) Set MCP_DEBUG=true for details"
+	}
+
 	// Add filtering statistics
-	stats := filter.GetStats()
 	response["filtering_stats"] = map[string]interface{}{
 		"total_lines":       stats.TotalLines,
 		"filtered_lines":    stats.FilteredLines,
 		"kept_lines":        stats.KeptLines,
-		"reduction_percent": filter.ReductionPercentage(),
+		"reduction_percent": outputFilter.ReductionPercentage(),
 	}
 
 	// Add errors if any

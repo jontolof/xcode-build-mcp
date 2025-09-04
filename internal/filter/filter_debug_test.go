@@ -248,7 +248,6 @@ func TestCompilationNoiseFiltering(t *testing.T) {
 		"RegisterExecutionPolicyException /Users",
 		"Validate /Users/test",
 		"=== BUILD TARGET TestApp",
-		"Build settings from command line:",
 		"Command line invocation:",
 		"/usr/bin/xcodebuild test",
 		"User defaults from command line:",

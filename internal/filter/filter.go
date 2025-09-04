@@ -255,7 +255,7 @@ func (f *Filter) getMaxCharsForMode() int {
 	case Standard:
 		return 5000 // Strict: ~1250 tokens max
 	case Verbose:
-		return 20000 // Limited: ~5000 tokens max
+		return 80000 // Increased: ~20000 tokens max (still under 25k limit)
 	default:
 		return 5000
 	}
@@ -305,6 +305,28 @@ func (f *Filter) evaluateLine(line string, context *FilterContext) FilterAction 
 		return Remove
 	}
 	context.LastLineWasEmpty = false
+
+	// ALWAYS keep critical build status lines in ALL modes
+	criticalPatterns := []string{
+		"** BUILD SUCCEEDED **",
+		"** BUILD FAILED **",
+		"** TEST SUCCEEDED **",
+		"** TEST FAILED **",
+		"** CLEAN SUCCEEDED **",
+		"** CLEAN FAILED **",
+		"The following build commands failed:",
+		"error:",
+		"fatal error:",
+		"Build settings from command line:",
+		"xcodebuild: error:",
+	}
+	
+	for _, pattern := range criticalPatterns {
+		if strings.Contains(line, pattern) {
+			f.recordRuleUsage("critical-always-keep")
+			return Keep // Always keep, regardless of mode
+		}
+	}
 
 	// Always keep critical information based on mode
 	switch f.mode {
@@ -396,6 +418,17 @@ func (f *Filter) evaluateStandardMode(line string, context *FilterContext) Filte
 	if strings.Contains(line, "Test Case '") || strings.Contains(line, "Test Suite '") {
 		f.recordRuleUsage("test-detail-keep")
 		return Keep
+	}
+
+	// Keep build phase progress
+	if strings.Contains(line, "===") && strings.Contains(line, "TARGET") {
+		f.recordRuleUsage("target-progress-keep")
+		return Keep // Keep target build indicators
+	}
+	
+	if strings.Contains(line, "[") && strings.Contains(line, "%]") {
+		f.recordRuleUsage("percentage-progress-keep")
+		return Keep // Keep percentage progress
 	}
 
 	// Keep simplified progress indicators

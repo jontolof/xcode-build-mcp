@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -163,7 +164,9 @@ func (t *CaptureLogs) captureLogs(ctx context.Context, params *types.LogCaptureP
 		return nil, fmt.Errorf("device UDID is required")
 	}
 
-	args = append(args, "log", "stream")
+	// Use 'log show' instead of 'log stream' to prevent hanging
+	// 'log stream' runs indefinitely, but 'log show' returns historical logs and exits
+	args = append(args, "log", "show", "--last", "2m")
 
 	// Add filtering options
 	if params.BundleID != "" {
@@ -195,6 +198,11 @@ func (t *CaptureLogs) captureLogs(ctx context.Context, params *types.LogCaptureP
 	timeout := time.Duration(params.TimeoutSecs) * time.Second
 	cmdCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+
+	// Debug logging if enabled
+	if os.Getenv("MCP_DEBUG") == "true" {
+		fmt.Printf("DEBUG: capture_logs executing: xcrun %s\n", strings.Join(args, " "))
+	}
 
 	// Execute log command
 	cmd := exec.CommandContext(cmdCtx, "xcrun", args...)

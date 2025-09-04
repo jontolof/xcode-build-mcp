@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -86,6 +87,11 @@ func (t *LaunchAppTool) Execute(ctx context.Context, args map[string]interface{}
 
 	start := time.Now()
 
+	// Debug logging if enabled
+	if os.Getenv("MCP_DEBUG") == "true" {
+		fmt.Printf("DEBUG: launch_app called with params: %+v\n", params)
+	}
+
 	t.logger.Printf("Launching app %s", params.BundleID)
 
 	// Resolve target device if not provided
@@ -97,6 +103,11 @@ func (t *LaunchAppTool) Execute(ctx context.Context, args map[string]interface{}
 		}
 		targetUDID = detectedUDID
 		t.logger.Printf("Auto-selected device: %s", targetUDID)
+	}
+
+	// Pre-flight checks to provide better error messages
+	if err := t.validateLaunchPreconditions(ctx, params, targetUDID); err != nil {
+		return "", err // Already formatted with actionable message
 	}
 
 	// Launch the app
@@ -275,6 +286,49 @@ func (t *LaunchAppTool) selectBestDevice(ctx context.Context, deviceTypeFilter s
 
 	t.logger.Printf("Selected device: %s (%s)", bestCandidate.Name, bestCandidate.DeviceType)
 	return bestCandidate.UDID, nil
+}
+
+// validateLaunchPreconditions checks if app launch is likely to succeed
+func (t *LaunchAppTool) validateLaunchPreconditions(ctx context.Context, params *types.AppLaunchParams, udid string) error {
+	// Check if simulator is booted
+	isBooted, err := t.isSimulatorBooted(ctx, udid)
+	if err != nil {
+		t.logger.Printf("Warning: Could not check simulator state: %v", err)
+	} else if !isBooted {
+		return fmt.Errorf("simulator %s is not booted. Boot it first using: simulator_control with action='boot' and udid='%s'", udid, udid)
+	}
+
+	// Check if app is installed (best effort - don't fail if we can't check)
+	if isInstalled, err := t.isAppInstalled(ctx, params.BundleID, udid); err == nil && !isInstalled {
+		return fmt.Errorf("app '%s' is not installed on device %s. Install it first using: install_app with app_path pointing to your .app bundle", params.BundleID, udid)
+	}
+
+	return nil
+}
+
+// isSimulatorBooted checks if the simulator is currently booted
+func (t *LaunchAppTool) isSimulatorBooted(ctx context.Context, udid string) (bool, error) {
+	args := []string{"xcrun", "simctl", "list", "devices", "--json"}
+	result, err := t.executor.ExecuteCommand(ctx, args)
+	if err != nil {
+		return false, err
+	}
+
+	// Parse JSON to check device state
+	// This is a simplified check - look for "state" : "Booted"
+	return strings.Contains(result.Output, fmt.Sprintf(`"%s"`, udid)) && strings.Contains(result.Output, `"state" : "Booted"`), nil
+}
+
+// isAppInstalled checks if the app is installed on the device
+func (t *LaunchAppTool) isAppInstalled(ctx context.Context, bundleID, udid string) (bool, error) {
+	args := []string{"xcrun", "simctl", "listapps", udid}
+	result, err := t.executor.ExecuteCommand(ctx, args)
+	if err != nil {
+		return false, err
+	}
+
+	// Check if bundle ID appears in installed apps
+	return strings.Contains(result.Output, bundleID), nil
 }
 
 func (t *LaunchAppTool) launchApp(ctx context.Context, params *types.AppLaunchParams, udid string) (*types.AppLaunchResult, error) {
