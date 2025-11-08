@@ -118,6 +118,149 @@ Test Suite 'All tests' failed at 2023-10-01 10:00:01.000
 	}
 }
 
+func TestParser_ParseTestOutputWithBundles(t *testing.T) {
+	parser := NewParser()
+
+	testOutput := `
+Test Suite 'All tests' started at 2024-01-15 10:30:45.123
+Test Suite 'LeMieLingueAppTests' started at 2024-01-15 10:30:45.125
+Test Case 'LeMieLingueAppTests.testExample' started
+Test Case 'LeMieLingueAppTests.testExample' passed (0.123 seconds)
+Test Case 'LeMieLingueAppTests.testPerformance' started
+Test Case 'LeMieLingueAppTests.testPerformance' passed (1.234 seconds)
+Test Suite 'LeMieLingueAppTests' passed at 2024-01-15 10:30:46.482
+	 Executed 2 tests, with 0 failures (0 unexpected) in 1.357 seconds
+
+Test Suite 'LeMieLingueAppUITests' started at 2024-01-15 10:30:46.485
+Test Case 'LeMieLingueAppUITests.testLaunch' started
+Test Case 'LeMieLingueAppUITests.testLaunch' passed (5.678 seconds)
+Test Suite 'LeMieLingueAppUITests' passed at 2024-01-15 10:30:52.165
+	 Executed 1 test, with 0 failures (0 unexpected) in 5.680 seconds
+
+Test Suite 'All tests' passed at 2024-01-15 10:30:52.167
+	 Executed 3 tests, with 0 failures (0 unexpected) in 7.044 seconds
+
+** TEST SUCCEEDED **
+`
+
+	result := parser.ParseTestOutput(testOutput)
+
+	if result == nil {
+		t.Fatal("ParseTestOutput returned nil")
+	}
+
+	if !result.Success {
+		t.Error("Expected test to be marked as successful")
+	}
+
+	// Check test counts
+	if result.TestSummary.TotalTests != 3 {
+		t.Errorf("Expected 3 total tests, got %d", result.TestSummary.TotalTests)
+	}
+
+	if result.TestSummary.PassedTests != 3 {
+		t.Errorf("Expected 3 passed tests, got %d", result.TestSummary.PassedTests)
+	}
+
+	// Check test bundles
+	if len(result.TestSummary.TestBundles) != 2 {
+		t.Fatalf("Expected 2 test bundles, got %d", len(result.TestSummary.TestBundles))
+	}
+
+	// Find unit test bundle
+	var unitBundle, uiBundle *struct {
+		Name      string
+		Type      string
+		Executed  bool
+		Status    string
+		TestCount int
+	}
+
+	for i := range result.TestSummary.TestBundles {
+		bundle := &result.TestSummary.TestBundles[i]
+		if bundle.Name == "LeMieLingueAppTests" {
+			unitBundle = &struct {
+				Name      string
+				Type      string
+				Executed  bool
+				Status    string
+				TestCount int
+			}{bundle.Name, bundle.Type, bundle.Executed, bundle.Status, bundle.TestCount}
+		} else if bundle.Name == "LeMieLingueAppUITests" {
+			uiBundle = &struct {
+				Name      string
+				Type      string
+				Executed  bool
+				Status    string
+				TestCount int
+			}{bundle.Name, bundle.Type, bundle.Executed, bundle.Status, bundle.TestCount}
+		}
+	}
+
+	// Verify unit test bundle
+	if unitBundle == nil {
+		t.Fatal("Unit test bundle not found")
+	}
+	if unitBundle.Type != "unit" {
+		t.Errorf("Expected unit test bundle type 'unit', got '%s'", unitBundle.Type)
+	}
+	if !unitBundle.Executed {
+		t.Error("Expected unit test bundle to be marked as executed")
+	}
+	if unitBundle.Status != "passed" {
+		t.Errorf("Expected unit test bundle status 'passed', got '%s'", unitBundle.Status)
+	}
+	if unitBundle.TestCount != 2 {
+		t.Errorf("Expected unit test bundle to have 2 tests, got %d", unitBundle.TestCount)
+	}
+
+	// Verify UI test bundle
+	if uiBundle == nil {
+		t.Fatal("UI test bundle not found")
+	}
+	if uiBundle.Type != "ui" {
+		t.Errorf("Expected UI test bundle type 'ui', got '%s'", uiBundle.Type)
+	}
+	if !uiBundle.Executed {
+		t.Error("Expected UI test bundle to be marked as executed")
+	}
+	if uiBundle.Status != "passed" {
+		t.Errorf("Expected UI test bundle status 'passed', got '%s'", uiBundle.Status)
+	}
+	if uiBundle.TestCount != 1 {
+		t.Errorf("Expected UI test bundle to have 1 test, got %d", uiBundle.TestCount)
+	}
+}
+
+func TestParser_DetectBundleType(t *testing.T) {
+	parser := NewParser()
+
+	tests := []struct {
+		name         string
+		suiteName    string
+		expectedType string
+	}{
+		{"UI tests with UITest suffix", "MyAppUITests", "ui"},
+		{"UI tests with UITest in name", "MyAppUITestSuite", "ui"},
+		{"UI tests with UI-Test", "MyApp-UI-Tests", "ui"},
+		{"Performance tests", "MyAppPerformanceTests", "performance"},
+		{"Performance tests abbreviated", "MyAppPerfTests", "performance"},
+		{"Integration tests", "MyAppIntegrationTests", "integration"},
+		{"Unit tests", "MyAppTests", "unit"},
+		{"Unit tests explicit", "MyAppUnitTests", "unit"},
+		{"Default to unit", "SomeRandomName", "unit"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parser.detectBundleType(tt.suiteName)
+			if result != tt.expectedType {
+				t.Errorf("detectBundleType(%q) = %q, expected %q", tt.suiteName, result, tt.expectedType)
+			}
+		})
+	}
+}
+
 func TestParser_ParseCleanOutput(t *testing.T) {
 	parser := NewParser()
 

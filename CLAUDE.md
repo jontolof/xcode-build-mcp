@@ -25,6 +25,37 @@ This repository contains the design specification for an optimized Xcode Build S
 
 This is a **fully implemented MCP server** with all 14 essential tools operational and tested. The implementation is complete and production-ready, achieving 90%+ output reduction while maintaining full functionality.
 
+
+## ⚙️ MANDATORY WORKFLOWS
+
+### Git Commit Workflow (Only When User Explicitly Instructs)
+
+**Pre-Commit Validation** (run in parallel):
+1. `git status` - Verify staged changes
+2. `git diff` - Review actual changes
+3. `git log -3` - Match commit style
+
+**Commit Message Format**:
+```
+<prefix>: <description>
+```
+
+**Prefixes** (use exactly one):
+- `feat` - New features or functionality
+- `fix` - Bug fixes, error resolutions, CI/workflow fixes
+- `docs` - Documentation changes only
+- `chore` - Maintenance tasks (gitignore, dependencies, etc.)
+- `refactor` - Code restructuring without functional changes
+- `test` - Adding or modifying tests
+- `style` - Code formatting, whitespace changes
+
+**Commit Message Rules**:
+- ✅ Present tense: "add feature" NOT "added feature"
+- ✅ Under 50 characters total
+- ✅ No period at the end
+- ✅ No attribution, AI references, or "Co-Authored-By" lines
+- ✅ No emoji or decorations
+
 ## Key Concepts
 
 ### MCP (Model Context Protocol)

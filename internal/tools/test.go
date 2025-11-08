@@ -121,6 +121,19 @@ func (t *XcodeTestTool) Execute(ctx context.Context, args map[string]interface{}
 	filteredOutput := outputFilter.Filter(result.Output)
 	testResult.FilteredOutput = filteredOutput
 
+	// Convert test bundles to map format for JSON response
+	testBundles := make([]map[string]interface{}, 0, len(testResult.TestSummary.TestBundles))
+	for _, bundle := range testResult.TestSummary.TestBundles {
+		testBundles = append(testBundles, map[string]interface{}{
+			"name":       bundle.Name,
+			"type":       bundle.Type,
+			"executed":   bundle.Executed,
+			"status":     bundle.Status,
+			"test_count": bundle.TestCount,
+			"duration":   bundle.Duration.String(),
+		})
+	}
+
 	response := map[string]interface{}{
 		"success":         testResult.Success,
 		"duration":        testResult.Duration.String(),
@@ -131,6 +144,7 @@ func (t *XcodeTestTool) Execute(ctx context.Context, args map[string]interface{}
 			"passed_tests": testResult.TestSummary.PassedTests,
 			"failed_tests": testResult.TestSummary.FailedTests,
 		},
+		"test_bundles": testBundles,
 	}
 
 	jsonData, err := json.MarshalIndent(response, "", "  ")

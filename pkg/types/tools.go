@@ -65,12 +65,13 @@ type TestResult struct {
 }
 
 type TestSummary struct {
-	TotalTests         int        `json:"total_tests"`
-	PassedTests        int        `json:"passed_tests"`
-	FailedTests        int        `json:"failed_tests"`
-	SkippedTests       int        `json:"skipped_tests"`
-	TestResults        []TestCase `json:"test_results"`
-	FailedTestsDetails []TestCase `json:"failed_tests_details,omitempty"`
+	TotalTests         int          `json:"total_tests"`
+	PassedTests        int          `json:"passed_tests"`
+	FailedTests        int          `json:"failed_tests"`
+	SkippedTests       int          `json:"skipped_tests"`
+	TestResults        []TestCase   `json:"test_results"`
+	FailedTestsDetails []TestCase   `json:"failed_tests_details,omitempty"`
+	TestBundles        []TestBundle `json:"test_bundles,omitempty"`
 }
 
 type TestCase struct {
@@ -80,6 +81,15 @@ type TestCase struct {
 	Duration  time.Duration `json:"duration"`
 	Message   string        `json:"message,omitempty"`
 	Location  string        `json:"location,omitempty"`
+}
+
+type TestBundle struct {
+	Name      string        `json:"name"`
+	Type      string        `json:"type"`
+	Executed  bool          `json:"executed"`
+	Status    string        `json:"status"`
+	TestCount int           `json:"test_count"`
+	Duration  time.Duration `json:"duration,omitempty"`
 }
 
 type Coverage struct {

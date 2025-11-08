@@ -30,6 +30,8 @@ var (
 	testSuccessRegex = regexp.MustCompile(`\*\* TEST SUCCEEDED \*\*`)
 	testFailedRegex  = regexp.MustCompile(`\*\* TEST FAILED \*\*`)
 	testCaseRegex    = regexp.MustCompile(`Test Case '(.+?)' (passed|failed|started) \((\d+\.\d+) seconds\)`)
+	testSuiteRegex   = regexp.MustCompile(`Test Suite '(.+?)' (passed|failed|started)`)
+	testSuiteCountRegex = regexp.MustCompile(`Executed (\d+) tests?, with (\d+) failures? .* in ([\d.]+) seconds`)
 
 	// Archive/export paths
 	archiveRegex = regexp.MustCompile(`Archive path: (.+\.xcarchive)`)
@@ -123,10 +125,13 @@ func (p *Parser) ParseTestOutput(output string) *types.TestResult {
 		TestSummary: types.TestSummary{
 			TestResults:        []types.TestCase{},
 			FailedTestsDetails: []types.TestCase{},
+			TestBundles:        []types.TestBundle{},
 		},
 	}
 
 	var currentTest *types.TestCase
+	testBundles := make(map[string]*types.TestBundle)
+	var lastBundleName string
 
 	scanner := bufio.NewScanner(strings.NewReader(output))
 	for scanner.Scan() {
@@ -140,6 +145,47 @@ func (p *Parser) ParseTestOutput(output string) *types.TestResult {
 			result.Success = true
 		} else if testFailedRegex.MatchString(line) {
 			result.Success = false
+		}
+
+		// Parse test suites/bundles
+		if matches := testSuiteRegex.FindStringSubmatch(line); matches != nil {
+			suiteName := matches[1]
+			status := matches[2]
+
+			// Skip "All tests" suite as it's just a container
+			if suiteName == "All tests" {
+				lastBundleName = "" // Clear to prevent summary line from being assigned to wrong bundle
+				continue
+			}
+
+			if status == "started" {
+				// Create new test bundle
+				bundleType := p.detectBundleType(suiteName)
+				testBundles[suiteName] = &types.TestBundle{
+					Name:     suiteName,
+					Type:     bundleType,
+					Executed: true,
+					Status:   "started",
+				}
+				lastBundleName = suiteName
+			} else if status == "passed" || status == "failed" {
+				// Update existing bundle
+				if bundle, exists := testBundles[suiteName]; exists {
+					bundle.Status = status
+					lastBundleName = suiteName
+				}
+			}
+		}
+
+		// Parse test suite summary (to get test count and duration)
+		if matches := testSuiteCountRegex.FindStringSubmatch(line); matches != nil && lastBundleName != "" {
+			testCount, _ := strconv.Atoi(matches[1])
+			duration, _ := strconv.ParseFloat(matches[3], 64)
+
+			if bundle, exists := testBundles[lastBundleName]; exists {
+				bundle.TestCount = testCount
+				bundle.Duration = time.Duration(duration * float64(time.Second))
+			}
 		}
 
 		// Parse test cases
@@ -188,7 +234,28 @@ func (p *Parser) ParseTestOutput(output string) *types.TestResult {
 		}
 	}
 
+	// Convert map to slice
+	for _, bundle := range testBundles {
+		result.TestSummary.TestBundles = append(result.TestSummary.TestBundles, *bundle)
+	}
+
 	return result
+}
+
+func (p *Parser) detectBundleType(suiteName string) string {
+	nameLower := strings.ToLower(suiteName)
+
+	if strings.Contains(nameLower, "uitest") || strings.Contains(nameLower, "ui-test") {
+		return "ui"
+	}
+	if strings.Contains(nameLower, "performance") || strings.Contains(nameLower, "perf") {
+		return "performance"
+	}
+	if strings.Contains(nameLower, "integration") {
+		return "integration"
+	}
+
+	return "unit"
 }
 
 func (p *Parser) ParseCleanOutput(output string) *types.CleanResult {
