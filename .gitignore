@@ -35,6 +35,8 @@ benchmark
 /benchmark
 docker-compose-mcp
 /docker-compose-mcp
+xcode-build-mcp
+/xcode-build-mcp
 
 # Go workspace file
 go.work
