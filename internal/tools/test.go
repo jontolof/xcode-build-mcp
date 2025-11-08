@@ -52,7 +52,7 @@ func NewXcodeTestTool(executor *xcode.Executor, parser *xcode.Parser, logger com
 
 	return &XcodeTestTool{
 		name:        "xcode_test",
-		description: "Universal Xcode test command that runs tests with detailed results and intelligent output filtering",
+		description: "Universal Xcode test command that runs tests with detailed results and intelligent output filtering. Returns comprehensive crash detection including: crash_type (segmentation_fault, abort, killed, timeout, etc.), process_crashed (bool), crash_indicators (test_runner_crashed, connection_interrupted, simulator_boot_timeout, etc.), simulator_crashes (array of crash reports), and silent_failure detection. Always check crash_type field - if not 'none', the test execution crashed rather than failed normally.",
 		schema:      schema,
 		executor:    executor,
 		parser:      parser,

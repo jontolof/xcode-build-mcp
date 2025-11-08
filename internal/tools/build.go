@@ -92,7 +92,7 @@ func NewXcodeBuildTool(executor *xcode.Executor, parser *xcode.Parser, logger co
 
 	return &XcodeBuildTool{
 		name:        "xcode_build",
-		description: "Universal Xcode build command that handles projects, workspaces, schemes, and targets with intelligent output filtering",
+		description: "Universal Xcode build command that handles projects, workspaces, schemes, and targets with intelligent output filtering. Returns comprehensive crash detection including: crash_type (segmentation_fault, abort, killed, timeout, build_failure, etc.), process_crashed (bool), crash_indicators (simulator_boot_timeout, bundle_load_failed, etc.), and silent_failure detection. Always check crash_type field - if not 'none', xcodebuild crashed rather than having normal build errors.",
 		schema:      schema,
 		executor:    executor,
 		parser:      parser,
