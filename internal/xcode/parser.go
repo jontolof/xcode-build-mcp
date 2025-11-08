@@ -40,6 +40,15 @@ var (
 	// Clean results
 	cleanSuccessRegex = regexp.MustCompile(`\*\* CLEAN SUCCEEDED \*\*`)
 	cleanFailedRegex  = regexp.MustCompile(`\*\* CLEAN FAILED \*\*`)
+
+	// Crash detection patterns
+	testRunnerCrashedRegex      = regexp.MustCompile(`Test runner.*crashed|Testing failed.*crashed`)
+	connectionInterruptedRegex  = regexp.MustCompile(`Connection interrupted|Connection with the remote side was unexpectedly closed`)
+	earlyExitRegex              = regexp.MustCompile(`Early unexpected exit|operation never finished bootstrapping`)
+	neverBeganTestingRegex      = regexp.MustCompile(`Test runner never began executing tests`)
+	failedToLoadBundleRegex     = regexp.MustCompile(`Failed to load the test bundle`)
+	simulatorBootTimeoutRegex   = regexp.MustCompile(`Simulator.*timed out|Failed to boot simulator`)
+	testProcessCrashedRegex     = regexp.MustCompile(`Test process crashed`)
 )
 
 func (p *Parser) ParseBuildOutput(output string) *types.BuildResult {
@@ -476,4 +485,60 @@ func (p *Parser) ParseTargets(output string) []string {
 	}
 
 	return targets
+}
+
+// DetectCrashIndicators scans output for known crash patterns
+func (p *Parser) DetectCrashIndicators(output string) types.CrashIndicators {
+	indicators := types.CrashIndicators{}
+
+	scanner := bufio.NewScanner(strings.NewReader(output))
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if testRunnerCrashedRegex.MatchString(line) {
+			indicators.TestRunnerCrashed = true
+		}
+		if connectionInterruptedRegex.MatchString(line) {
+			indicators.ConnectionInterrupted = true
+		}
+		if earlyExitRegex.MatchString(line) {
+			indicators.EarlyExit = true
+		}
+		if neverBeganTestingRegex.MatchString(line) {
+			indicators.NeverBeganTesting = true
+		}
+		if failedToLoadBundleRegex.MatchString(line) {
+			indicators.BundleLoadFailed = true
+		}
+		if simulatorBootTimeoutRegex.MatchString(line) {
+			indicators.SimulatorBootTimeout = true
+		}
+		if testProcessCrashedRegex.MatchString(line) {
+			indicators.TestProcessCrashed = true
+		}
+	}
+
+	return indicators
+}
+
+// DetectSilentFailure detects cases where xcodebuild exits without proper output
+func (p *Parser) DetectSilentFailure(output string, exitCode int) bool {
+	// If exit code indicates failure but output is suspiciously small
+	if exitCode != 0 && len(output) < 500 {
+		return true
+	}
+
+	// If no success/failure markers found
+	hasSuccessMarker := buildSuccessRegex.MatchString(output) ||
+		testSuccessRegex.MatchString(output) ||
+		cleanSuccessRegex.MatchString(output)
+	hasFailureMarker := buildFailedRegex.MatchString(output) ||
+		testFailedRegex.MatchString(output) ||
+		cleanFailedRegex.MatchString(output)
+
+	if !hasSuccessMarker && !hasFailureMarker && exitCode != 0 {
+		return true
+	}
+
+	return false
 }

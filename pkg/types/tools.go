@@ -4,6 +4,53 @@ import (
 	"time"
 )
 
+// CrashType represents different types of crashes that can occur
+type CrashType string
+
+const (
+	CrashTypeNone              CrashType = "none"
+	CrashTypeSegmentationFault CrashType = "segmentation_fault"
+	CrashTypeAbort             CrashType = "abort"
+	CrashTypeKilled            CrashType = "killed"
+	CrashTypeInterrupted       CrashType = "interrupted"
+	CrashTypeTerminated        CrashType = "terminated"
+	CrashTypeTimeout           CrashType = "timeout"
+	CrashTypeBuildFailure      CrashType = "build_failure"
+	CrashTypeTestFailure       CrashType = "test_failure"
+	CrashTypeSimulatorCrash    CrashType = "simulator_crash"
+	CrashTypeUnknown           CrashType = "unknown"
+)
+
+// ProcessState contains detailed information about process termination
+type ProcessState struct {
+	Exited     bool   `json:"exited"`
+	Signaled   bool   `json:"signaled"`
+	Signal     int    `json:"signal,omitempty"`
+	SignalName string `json:"signal_name,omitempty"`
+	CoreDump   bool   `json:"core_dump,omitempty"`
+}
+
+// CrashIndicators contains flags for various crash patterns detected in output
+type CrashIndicators struct {
+	TestRunnerCrashed     bool `json:"test_runner_crashed"`
+	ConnectionInterrupted bool `json:"connection_interrupted"`
+	EarlyExit             bool `json:"early_exit"`
+	NeverBeganTesting     bool `json:"never_began_testing"`
+	BundleLoadFailed      bool `json:"bundle_load_failed"`
+	SimulatorBootTimeout  bool `json:"simulator_boot_timeout"`
+	TestProcessCrashed    bool `json:"test_process_crashed"`
+}
+
+// CrashReport represents a parsed crash report from DiagnosticReports
+type CrashReport struct {
+	ProcessName   string    `json:"process_name"`
+	ProcessPath   string    `json:"process_path"`
+	ExceptionType string    `json:"exception_type"`
+	Signal        int       `json:"signal"`
+	Timestamp     time.Time `json:"timestamp"`
+	FilePath      string    `json:"file_path"`
+}
+
 type BuildParams struct {
 	ProjectPath   string            `json:"project_path,omitempty"`
 	Workspace     string            `json:"workspace,omitempty"`
@@ -32,6 +79,13 @@ type BuildResult struct {
 	ArtifactPaths  []string               `json:"artifact_paths,omitempty"`
 	BuildSettings  map[string]interface{} `json:"build_settings,omitempty"`
 	ExitCode       int                    `json:"exit_code"`
+
+	// Crash detection fields
+	CrashType       CrashType       `json:"crash_type"`
+	ProcessCrashed  bool            `json:"process_crashed"`
+	ProcessState    *ProcessState   `json:"process_state,omitempty"`
+	CrashIndicators CrashIndicators `json:"crash_indicators,omitempty"`
+	SilentFailure   bool            `json:"silent_failure"`
 }
 
 type TestParams struct {
@@ -62,6 +116,14 @@ type TestResult struct {
 	TestSummary    TestSummary   `json:"test_summary"`
 	Coverage       *Coverage     `json:"coverage,omitempty"`
 	ExitCode       int           `json:"exit_code"`
+
+	// Crash detection fields
+	CrashType        CrashType        `json:"crash_type"`
+	ProcessCrashed   bool             `json:"process_crashed"`
+	ProcessState     *ProcessState    `json:"process_state,omitempty"`
+	CrashIndicators  CrashIndicators  `json:"crash_indicators,omitempty"`
+	SimulatorCrashes []CrashReport    `json:"simulator_crashes,omitempty"`
+	SilentFailure    bool             `json:"silent_failure"`
 }
 
 type TestSummary struct {

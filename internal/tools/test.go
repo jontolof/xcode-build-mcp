@@ -106,6 +106,9 @@ func (t *XcodeTestTool) Execute(ctx context.Context, args map[string]interface{}
 		return "", fmt.Errorf("failed to build command arguments: %w", err)
 	}
 
+	// Initialize crash detector before execution
+	crashDetector := xcode.NewSimulatorCrashDetector()
+
 	result, err := t.executor.ExecuteCommand(ctx, cmdArgs)
 	if err != nil {
 		return "", fmt.Errorf("failed to execute test command: %w", err)
@@ -115,6 +118,27 @@ func (t *XcodeTestTool) Execute(ctx context.Context, args map[string]interface{}
 	testResult.Duration = result.Duration
 	testResult.ExitCode = result.ExitCode
 	testResult.Success = result.Success()
+
+	// Integrate crash detection from executor
+	testResult.CrashType = result.CrashType
+	testResult.ProcessCrashed = result.ProcessState != nil && result.ProcessState.Signaled
+	testResult.ProcessState = result.ProcessState
+
+	// Detect crash patterns in output
+	testResult.CrashIndicators = t.parser.DetectCrashIndicators(result.Output)
+
+	// Check for silent failures
+	testResult.SilentFailure = t.parser.DetectSilentFailure(result.Output, result.ExitCode)
+
+	// Check for simulator crashes
+	crashes, _ := crashDetector.CheckForCrashes("Simulator")
+	if len(crashes) > 0 {
+		testResult.SimulatorCrashes = crashes
+		// Upgrade crash type if we found simulator crashes but no other crash detected
+		if testResult.CrashType == types.CrashTypeNone || testResult.CrashType == types.CrashTypeUnknown {
+			testResult.CrashType = types.CrashTypeSimulatorCrash
+		}
+	}
 
 	// Apply filtering
 	outputFilter := filter.NewFilter(filter.OutputMode(params.OutputMode))
@@ -145,6 +169,13 @@ func (t *XcodeTestTool) Execute(ctx context.Context, args map[string]interface{}
 			"failed_tests": testResult.TestSummary.FailedTests,
 		},
 		"test_bundles": testBundles,
+		// Crash detection fields
+		"crash_type":        testResult.CrashType,
+		"process_crashed":   testResult.ProcessCrashed,
+		"silent_failure":    testResult.SilentFailure,
+		"crash_indicators":  testResult.CrashIndicators,
+		"process_state":     testResult.ProcessState,
+		"simulator_crashes": testResult.SimulatorCrashes,
 	}
 
 	jsonData, err := json.MarshalIndent(response, "", "  ")

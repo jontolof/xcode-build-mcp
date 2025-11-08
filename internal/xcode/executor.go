@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/jontolof/xcode-build-mcp/internal/common"
@@ -102,18 +103,69 @@ func (e *Executor) ExecuteCommand(ctx context.Context, args []string) (*CommandR
 		StderrOutput: stderrOutput,
 		Duration:     duration,
 		ExitCode:     0,
+		CrashType:    types.CrashTypeNone,
 	}
 
+	// Enhanced crash detection
 	if err != nil {
-		if exitError, ok := err.(*exec.ExitError); ok {
-			result.ExitCode = exitError.ExitCode()
-		} else {
-			result.ExitCode = -1
-		}
 		result.Error = err
+
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			// Get platform-specific process state (Unix/Linux/macOS)
+			if ws, ok := exitErr.Sys().(syscall.WaitStatus); ok {
+				result.ProcessState = &types.ProcessState{
+					Exited:   ws.Exited(),
+					Signaled: ws.Signaled(),
+				}
+
+				if ws.Signaled() {
+					// Process was killed by a signal
+					signal := ws.Signal()
+					result.ProcessState.Signal = int(signal)
+					result.ProcessState.SignalName = signal.String()
+					result.CrashType = classifySignal(signal)
+					result.ExitCode = 128 + int(signal)
+
+					e.logger.Printf("Command terminated by signal: %s (%d)",
+						signal.String(), signal)
+				} else if ws.Exited() {
+					// Normal exit with exit code
+					result.ExitCode = ws.ExitStatus()
+					result.CrashType = classifyExitCode(result.ExitCode)
+
+					e.logger.Printf("Command exited with code: %d", result.ExitCode)
+				}
+
+				if ws.CoreDump() {
+					result.ProcessState.CoreDump = true
+					result.CrashType = types.CrashTypeSegmentationFault
+					e.logger.Printf("Command produced core dump")
+				}
+			} else {
+				// Fallback for non-Unix systems or when casting fails
+				result.ExitCode = exitErr.ExitCode()
+				result.CrashType = classifyExitCode(result.ExitCode)
+			}
+		} else if ctx.Err() == context.DeadlineExceeded {
+			// Timeout
+			result.ExitCode = -2
+			result.CrashType = types.CrashTypeTimeout
+			e.logger.Printf("Command timed out after %v", duration)
+		} else if ctx.Err() == context.Canceled {
+			// Canceled
+			result.ExitCode = -3
+			result.CrashType = types.CrashTypeInterrupted
+			e.logger.Printf("Command was canceled")
+		} else {
+			// Other errors (failed to start, etc.)
+			result.ExitCode = -1
+			result.CrashType = types.CrashTypeUnknown
+			e.logger.Printf("Command failed with unknown error: %v", err)
+		}
 	}
 
-	e.logger.Printf("Command completed in %v with exit code %d", duration, result.ExitCode)
+	e.logger.Printf("Command completed in %v with exit code %d (crash type: %s)",
+		duration, result.ExitCode, result.CrashType)
 
 	return result, nil
 }
@@ -337,6 +389,8 @@ type CommandResult struct {
 	Duration     time.Duration
 	ExitCode     int
 	Error        error
+	ProcessState *types.ProcessState
+	CrashType    types.CrashType
 }
 
 func (r *CommandResult) Success() bool {
@@ -345,4 +399,46 @@ func (r *CommandResult) Success() bool {
 
 func (r *CommandResult) HasOutput() bool {
 	return strings.TrimSpace(r.Output) != ""
+}
+
+func (r *CommandResult) IsCrash() bool {
+	return r.ProcessState != nil && r.ProcessState.Signaled
+}
+
+// classifySignal classifies a signal into a CrashType
+func classifySignal(sig syscall.Signal) types.CrashType {
+	switch sig {
+	case syscall.SIGSEGV:
+		return types.CrashTypeSegmentationFault
+	case syscall.SIGABRT:
+		return types.CrashTypeAbort
+	case syscall.SIGKILL:
+		return types.CrashTypeKilled
+	case syscall.SIGINT:
+		return types.CrashTypeInterrupted
+	case syscall.SIGTERM:
+		return types.CrashTypeTerminated
+	default:
+		return types.CrashTypeUnknown
+	}
+}
+
+// classifyExitCode classifies an exit code into a CrashType
+func classifyExitCode(exitCode int) types.CrashType {
+	switch exitCode {
+	case 0:
+		return types.CrashTypeNone
+	case 65:
+		// Code signing, simulator timeout, or dependency issues
+		return types.CrashTypeBuildFailure
+	case 70:
+		// Target not found, version mismatch, or device issues
+		return types.CrashTypeBuildFailure
+	default:
+		if exitCode > 128 && exitCode < 160 {
+			// Likely signal-based exit (128 + signal number)
+			return classifySignal(syscall.Signal(exitCode - 128))
+		}
+		return types.CrashTypeUnknown
+	}
 }

@@ -148,6 +148,17 @@ func (t *XcodeBuildTool) Execute(ctx context.Context, args map[string]interface{
 	buildResult.ExitCode = result.ExitCode
 	buildResult.Success = result.Success()
 
+	// Integrate crash detection from executor
+	buildResult.CrashType = result.CrashType
+	buildResult.ProcessCrashed = result.ProcessState != nil && result.ProcessState.Signaled
+	buildResult.ProcessState = result.ProcessState
+
+	// Detect crash patterns in output
+	buildResult.CrashIndicators = t.parser.DetectCrashIndicators(result.Output)
+
+	// Check for silent failures
+	buildResult.SilentFailure = t.parser.DetectSilentFailure(result.Output, result.ExitCode)
+
 	// Apply output filtering
 	outputMode := filter.OutputMode(params.OutputMode)
 	if outputMode == "" {
@@ -287,6 +298,12 @@ func (t *XcodeBuildTool) formatBuildResponse(result *types.BuildResult, outputFi
 		"duration":        result.Duration.String(),
 		"exit_code":       result.ExitCode,
 		"filtered_output": result.FilteredOutput,
+		// Crash detection fields
+		"crash_type":       result.CrashType,
+		"process_crashed":  result.ProcessCrashed,
+		"silent_failure":   result.SilentFailure,
+		"crash_indicators": result.CrashIndicators,
+		"process_state":    result.ProcessState,
 	}
 
 	// ALWAYS include a summary message
