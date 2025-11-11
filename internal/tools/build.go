@@ -92,7 +92,7 @@ func NewXcodeBuildTool(executor *xcode.Executor, parser *xcode.Parser, logger co
 
 	return &XcodeBuildTool{
 		name:        "xcode_build",
-		description: "Universal Xcode build command that handles projects, workspaces, schemes, and targets with intelligent output filtering. Returns comprehensive crash detection including: crash_type (segmentation_fault, abort, killed, timeout, build_failure, etc.), process_crashed (bool), crash_indicators (simulator_boot_timeout, bundle_load_failed, etc.), and silent_failure detection. Always check crash_type field - if not 'none', xcodebuild crashed rather than having normal build errors.",
+		description: "Universal Xcode build command that handles projects, workspaces, schemes, and targets with intelligent output filtering. Returns comprehensive crash detection including: crash_type (segmentation_fault, abort, killed, timeout, fatal_error, test_crash, build_failure, etc.), process_crashed (bool), crash_indicators (fatal_error_detected, swift_runtime_crash, simulator_boot_timeout, bundle_load_failed, etc.), and silent_failure detection. Always check crash_type field - if not 'none', xcodebuild crashed rather than having normal build errors.",
 		schema:      schema,
 		executor:    executor,
 		parser:      parser,
@@ -158,6 +158,17 @@ func (t *XcodeBuildTool) Execute(ctx context.Context, args map[string]interface{
 
 	// Check for silent failures
 	buildResult.SilentFailure = t.parser.DetectSilentFailure(result.Output, result.ExitCode)
+
+	// Context-aware crash type upgrade based on indicators
+	if buildResult.CrashIndicators.FatalErrorDetected {
+		// Swift fatal error during build (e.g., in build scripts)
+		buildResult.CrashType = types.CrashTypeFatalError
+		buildResult.ProcessCrashed = true
+	} else if buildResult.CrashIndicators.SwiftRuntimeCrash {
+		// Other Swift runtime crashes during build
+		buildResult.CrashType = types.CrashTypeTestCrash
+		buildResult.ProcessCrashed = true
+	}
 
 	// Apply output filtering
 	outputMode := filter.OutputMode(params.OutputMode)

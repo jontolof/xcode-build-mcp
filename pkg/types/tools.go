@@ -18,6 +18,8 @@ const (
 	CrashTypeBuildFailure      CrashType = "build_failure"
 	CrashTypeTestFailure       CrashType = "test_failure"
 	CrashTypeSimulatorCrash    CrashType = "simulator_crash"
+	CrashTypeFatalError        CrashType = "fatal_error"
+	CrashTypeTestCrash         CrashType = "test_crash"
 	CrashTypeUnknown           CrashType = "unknown"
 )
 
@@ -39,6 +41,8 @@ type CrashIndicators struct {
 	BundleLoadFailed      bool `json:"bundle_load_failed"`
 	SimulatorBootTimeout  bool `json:"simulator_boot_timeout"`
 	TestProcessCrashed    bool `json:"test_process_crashed"`
+	FatalErrorDetected    bool `json:"fatal_error_detected"`
+	SwiftRuntimeCrash     bool `json:"swift_runtime_crash"`
 }
 
 // CrashReport represents a parsed crash report from DiagnosticReports

@@ -52,7 +52,7 @@ func NewXcodeTestTool(executor *xcode.Executor, parser *xcode.Parser, logger com
 
 	return &XcodeTestTool{
 		name:        "xcode_test",
-		description: "Universal Xcode test command that runs tests with detailed results and intelligent output filtering. Returns comprehensive crash detection including: crash_type (segmentation_fault, abort, killed, timeout, etc.), process_crashed (bool), crash_indicators (test_runner_crashed, connection_interrupted, simulator_boot_timeout, etc.), simulator_crashes (array of crash reports), and silent_failure detection. Always check crash_type field - if not 'none', the test execution crashed rather than failed normally.",
+		description: "Universal Xcode test command that runs tests with detailed results and intelligent output filtering. Returns comprehensive crash detection including: crash_type (segmentation_fault, abort, killed, timeout, fatal_error, test_crash, etc.), process_crashed (bool), crash_indicators (test_runner_crashed, fatal_error_detected, swift_runtime_crash, connection_interrupted, simulator_boot_timeout, etc.), simulator_crashes (array of crash reports), and silent_failure detection. Always check crash_type field - if not 'none', the test execution crashed rather than failed normally.",
 		schema:      schema,
 		executor:    executor,
 		parser:      parser,
@@ -129,6 +129,23 @@ func (t *XcodeTestTool) Execute(ctx context.Context, args map[string]interface{}
 
 	// Check for silent failures
 	testResult.SilentFailure = t.parser.DetectSilentFailure(result.Output, result.ExitCode)
+
+	// Context-aware crash type upgrade based on indicators
+	if testResult.CrashIndicators.FatalErrorDetected {
+		// Swift fatal error takes precedence - this is a definite crash
+		testResult.CrashType = types.CrashTypeFatalError
+		testResult.ProcessCrashed = true
+	} else if testResult.CrashIndicators.SwiftRuntimeCrash {
+		// Other Swift runtime crashes (precondition, assertion, etc.)
+		testResult.CrashType = types.CrashTypeTestCrash
+		testResult.ProcessCrashed = true
+	} else if testResult.CrashIndicators.TestProcessCrashed || testResult.CrashIndicators.TestRunnerCrashed {
+		// If exit code 65 with test crash indicator, it's a test crash not build failure
+		if testResult.CrashType == types.CrashTypeBuildFailure {
+			testResult.CrashType = types.CrashTypeTestCrash
+		}
+		testResult.ProcessCrashed = true
+	}
 
 	// Check for simulator crashes
 	crashes, _ := crashDetector.CheckForCrashes("Simulator")

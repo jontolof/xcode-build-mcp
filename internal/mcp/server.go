@@ -79,9 +79,12 @@ func (s *Server) serve(ctx context.Context) error {
 			}
 
 			response := s.handleRequest(ctx, request)
-			if err := s.transport.WriteResponse(response); err != nil {
-				s.logger.Printf("Failed to write response: %v", err)
-				return err
+			// Don't send response for notifications (requests with no ID)
+			if response != nil {
+				if err := s.transport.WriteResponse(response); err != nil {
+					s.logger.Printf("Failed to write response: %v", err)
+					return err
+				}
 			}
 		}
 	}
@@ -101,6 +104,15 @@ func (s *Server) handleRequest(ctx context.Context, req *Request) *Response {
 	case "tools/call":
 		return s.handleCallTool(ctx, req)
 	default:
+		// Notifications (requests with no ID) should not receive responses
+		if req.ID == nil {
+			// Log unhandled notification in debug mode
+			if os.Getenv("MCP_LOG_LEVEL") == "debug" {
+				s.logger.Printf("Ignoring unhandled notification: %s", req.Method)
+			}
+			return nil
+		}
+		// Return error for unrecognized requests (with ID)
 		return &Response{
 			JSONRPC: "2.0",
 			ID:      req.ID,

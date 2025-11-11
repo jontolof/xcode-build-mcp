@@ -49,6 +49,13 @@ var (
 	failedToLoadBundleRegex     = regexp.MustCompile(`Failed to load the test bundle`)
 	simulatorBootTimeoutRegex   = regexp.MustCompile(`Simulator.*timed out|Failed to boot simulator`)
 	testProcessCrashedRegex     = regexp.MustCompile(`Test process crashed`)
+
+	// Swift runtime crash patterns
+	swiftFatalErrorRegex        = regexp.MustCompile(`Fatal error:`)
+	swiftPreconditionRegex      = regexp.MustCompile(`Precondition failed:`)
+	swiftAssertionRegex         = regexp.MustCompile(`Assertion failed:`)
+	swiftForceUnwrapRegex       = regexp.MustCompile(`Unexpectedly found nil while (unwrapping|implicitly unwrapping)`)
+	swiftIndexOutOfBoundsRegex  = regexp.MustCompile(`Index out of (range|bounds)`)
 )
 
 func (p *Parser) ParseBuildOutput(output string) *types.BuildResult {
@@ -515,6 +522,18 @@ func (p *Parser) DetectCrashIndicators(output string) types.CrashIndicators {
 		}
 		if testProcessCrashedRegex.MatchString(line) {
 			indicators.TestProcessCrashed = true
+		}
+
+		// Swift runtime crash detection
+		if swiftFatalErrorRegex.MatchString(line) {
+			indicators.FatalErrorDetected = true
+			indicators.SwiftRuntimeCrash = true
+		}
+		if swiftPreconditionRegex.MatchString(line) || swiftAssertionRegex.MatchString(line) {
+			indicators.SwiftRuntimeCrash = true
+		}
+		if swiftForceUnwrapRegex.MatchString(line) || swiftIndexOutOfBoundsRegex.MatchString(line) {
+			indicators.SwiftRuntimeCrash = true
 		}
 	}
 
