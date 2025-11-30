@@ -1,0 +1,19 @@
+# CODEOWNERS - Defines code ownership for automatic review requests
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything in the repository
+* @jontolof
+
+# Core implementation
+/internal/ @jontolof
+/cmd/ @jontolof
+/pkg/ @jontolof
+
+# Build and CI configuration
+/.github/ @jontolof
+/Makefile @jontolof
+/go.mod @jontolof
+
+# Documentation
+/docs/ @jontolof
+/*.md @jontolof
