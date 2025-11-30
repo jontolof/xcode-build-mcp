@@ -27,7 +27,7 @@ Our solution consolidates everything into **14 essential tools** that cover 100%
 
 ### Prerequisites
 
-- Go 1.21 or higher
+- Go 1.24.4 or higher
 - Xcode 14.0 or higher
 - macOS 12.0 or higher
 
@@ -39,10 +39,13 @@ git clone https://github.com/jontolof/xcode-build-mcp.git
 cd xcode-build-mcp
 
 # Build the server
-go build -o xcode-build-mcp cmd/server/main.go
+make build
+
+# Or build manually
+# go build -o bin/xcode-build-mcp cmd/server/main.go
 
 # Install to PATH (optional)
-sudo cp xcode-build-mcp /usr/local/bin/
+sudo cp bin/xcode-build-mcp /usr/local/bin/
 ```
 
 ### Basic Usage
@@ -53,9 +56,6 @@ xcode-build-mcp
 
 # Run with debug logging
 MCP_LOG_LEVEL=debug xcode-build-mcp
-
-# Run with custom output filtering
-MCP_OUTPUT_MODE=minimal xcode-build-mcp
 ```
 
 ### Integration with MCP Clients
@@ -66,11 +66,11 @@ Add to your MCP client configuration:
 {
   "mcpServers": {
     "xcode-build": {
-      "command": "xcode-build-mcp",
-      "args": ["stdio"],
+      "type": "stdio",
+      "command": "/usr/local/bin/xcode-build-mcp",
+      "args": [],
       "env": {
-        "MCP_LOG_LEVEL": "info",
-        "MCP_OUTPUT_MODE": "standard"
+        "MCP_LOG_LEVEL": "info"
       }
     }
   }
@@ -87,7 +87,8 @@ Universal build command that auto-detects project type and simulator.
 {
   "tool": "xcode_build",
   "parameters": {
-    "path": "MyApp.xcodeproj",
+    "project_path": ".",
+    "project": "MyApp.xcodeproj",
     "scheme": "MyApp",
     "configuration": "Debug"
   }
@@ -100,9 +101,9 @@ Universal test execution with parsed results.
 {
   "tool": "xcode_test",
   "parameters": {
-    "path": "MyApp.xcodeproj",
-    "scheme": "MyAppTests",
-    "filter": "testLogin*"
+    "project_path": ".",
+    "project": "MyApp.xcodeproj",
+    "scheme": "MyAppTests"
   }
 }
 ```
@@ -113,8 +114,9 @@ Clean build artifacts and derived data.
 {
   "tool": "xcode_clean",
   "parameters": {
-    "path": "MyApp.xcodeproj",
-    "derivedData": true
+    "project_path": ".",
+    "project": "MyApp.xcodeproj",
+    "clean_build": true
   }
 }
 ```
@@ -127,8 +129,8 @@ Find all Xcode projects in directory tree.
 {
   "tool": "discover_projects",
   "parameters": {
-    "root": ".",
-    "maxDepth": 3
+    "root_path": ".",
+    "max_depth": 3
   }
 }
 ```
@@ -139,7 +141,8 @@ List available build schemes.
 {
   "tool": "list_schemes",
   "parameters": {
-    "path": "MyApp.xcodeproj"
+    "project_path": ".",
+    "project": "MyApp.xcodeproj"
   }
 }
 ```
@@ -164,8 +167,8 @@ Boot, shutdown, or reset simulators.
 {
   "tool": "simulator_control",
   "parameters": {
-    "action": "boot",
-    "identifier": "iPhone 15 Pro"
+    "udid": "SIMULATOR-UDID-HERE",
+    "action": "boot"
   }
 }
 ```
@@ -176,8 +179,8 @@ Install apps to simulators or devices.
 {
   "tool": "install_app",
   "parameters": {
-    "appPath": "build/MyApp.app",
-    "destination": "iPhone 15 Pro"
+    "app_path": "build/MyApp.app",
+    "device_type": "iPhone"
   }
 }
 ```
@@ -188,8 +191,8 @@ Launch installed apps with optional arguments.
 {
   "tool": "launch_app",
   "parameters": {
-    "bundleId": "com.example.myapp",
-    "destination": "iPhone 15 Pro",
+    "bundle_id": "com.example.myapp",
+    "device_type": "iPhone",
     "arguments": ["--debug", "--mock-data"]
   }
 }
@@ -203,9 +206,9 @@ Capture and filter device/simulator logs.
 {
   "tool": "capture_logs",
   "parameters": {
-    "action": "start",
-    "destination": "iPhone 15 Pro",
-    "filter": "MyApp"
+    "device_type": "iPhone",
+    "bundle_id": "com.example.myapp",
+    "max_lines": 100
   }
 }
 ```
@@ -216,8 +219,8 @@ Capture simulator screenshots.
 {
   "tool": "screenshot",
   "parameters": {
-    "destination": "iPhone 15 Pro",
-    "outputPath": "screenshots/login.png"
+    "device_type": "iPhone",
+    "output_path": "screenshots/login.png"
   }
 }
 ```
@@ -228,8 +231,8 @@ Get UI element hierarchy for testing.
 {
   "tool": "describe_ui",
   "parameters": {
-    "destination": "iPhone 15 Pro",
-    "format": "tree"
+    "device_type": "iPhone",
+    "output_format": "tree"
   }
 }
 ```
@@ -242,12 +245,10 @@ Perform UI interactions (tap, swipe, type).
 {
   "tool": "ui_interact",
   "parameters": {
-    "destination": "iPhone 15 Pro",
+    "device_type": "iPhone",
     "action": "tap",
-    "parameters": {
-      "x": 100,
-      "y": 200
-    }
+    "x": 100,
+    "y": 200
   }
 }
 ```
@@ -258,8 +259,8 @@ Extract app metadata and information.
 {
   "tool": "get_app_info",
   "parameters": {
-    "appPath": "build/MyApp.app",
-    "info": "all"
+    "app_path": "build/MyApp.app",
+    "include_entitlements": true
   }
 }
 ```
@@ -302,28 +303,25 @@ Output: build/Debug-iphonesimulator/MyApp.app
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `MCP_LOG_LEVEL` | `info` | Logging level: `debug`, `info`, `warn`, `error` |
-| `MCP_OUTPUT_MODE` | `standard` | Output verbosity: `minimal`, `standard`, `verbose` |
-| `MCP_CACHE_TTL` | `300` | Cache TTL in seconds |
-| `MCP_TIMEOUT` | `300` | Command timeout in seconds |
-| `XCODE_PATH` | Auto-detect | Path to Xcode.app |
 
-### Configuration File
+### Tool Parameters
 
-Create `~/.xcode-build-mcp/config.json`:
+Output verbosity is controlled per-tool using the `output_mode` parameter:
 
 ```json
 {
-  "outputMode": "standard",
-  "caching": {
-    "enabled": true,
-    "ttl": 300
-  },
-  "filtering": {
-    "rules": "default",
-    "customPatterns": []
+  "tool": "xcode_build",
+  "parameters": {
+    "scheme": "MyApp",
+    "output_mode": "minimal"
   }
 }
 ```
+
+Available modes:
+- `minimal` - Errors and critical information only
+- `standard` - Errors, warnings, and summary (default)
+- `verbose` - Full build output
 
 ## 🧪 Development
 
@@ -331,7 +329,7 @@ Create `~/.xcode-build-mcp/config.json`:
 
 ```bash
 # Clone repository
-git clone https://github.com/[username]/xcode-build-mcp.git
+git clone https://github.com/jontolof/xcode-build-mcp.git
 cd xcode-build-mcp
 
 # Install dependencies (minimal)
@@ -354,16 +352,23 @@ go test -cover ./...
 
 ```
 xcode-build-mcp/
-├── cmd/server/          # Server entry point
+├── cmd/server/          # Server entry point (main.go)
 ├── internal/
-│   ├── mcp/            # MCP protocol implementation
-│   ├── xcode/          # Xcode integration
-│   ├── filter/         # Output filtering
-│   ├── cache/          # Caching system
-│   └── tools/          # Tool implementations
-├── pkg/types/          # Shared types
-├── tests/              # Test suites
-└── docs/               # Documentation
+│   ├── mcp/            # MCP protocol implementation (JSON-RPC 2.0)
+│   ├── xcode/          # Xcode command execution and parsing
+│   ├── filter/         # Output filtering system (90%+ reduction)
+│   ├── cache/          # Smart caching for project/scheme detection
+│   ├── tools/          # MCP tool implementations (14 tools)
+│   ├── common/         # Shared interfaces and utilities
+│   ├── metrics/        # Performance metrics tracking
+│   └── session/        # Session management
+├── pkg/types/          # Shared types and error handling
+├── tests/              # Test fixtures and integration tests
+│   ├── fixtures/       # Test data and mock files
+│   ├── integration/    # Integration tests
+│   └── mocks/          # Mock implementations
+└── docs/               # Documentation and ADRs
+    └── adr/            # Architectural Decision Records
 ```
 
 ### Testing
@@ -384,9 +389,10 @@ make coverage
 
 ## 📚 Documentation
 
-- [Implementation Guide](XCODE_BUILD_SERVER_MCP_IMPLEMENTATION_GUIDE.md) - Detailed design rationale
-- [Development Plan](PLAN.md) - Implementation roadmap and milestones
-- [API Reference](docs/API.md) - Complete tool API documentation
+- [CHANGELOG](CHANGELOG.md) - Version history and release notes
+- [Architectural Decision Records](docs/adr/) - Why we made specific design decisions
+- [Documentation Guide](docs/README.md) - Documentation philosophy and structure
+- [Development Guidelines](CLAUDE.md) - Guidelines for working with this codebase
 
 ## 📊 Benchmarks
 
@@ -428,9 +434,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- [GitHub Issues](https://github.com/[username]/xcode-build-mcp/issues) - Bug reports and feature requests
-- [Discussions](https://github.com/[username]/xcode-build-mcp/discussions) - General discussions
-- [Wiki](https://github.com/[username]/xcode-build-mcp/wiki) - Additional documentation
+- [GitHub Issues](https://github.com/jontolof/xcode-build-mcp/issues) - Bug reports and feature requests
+- [Discussions](https://github.com/jontolof/xcode-build-mcp/discussions) - General discussions
+- [Wiki](https://github.com/jontolof/xcode-build-mcp/wiki) - Additional documentation
 
 ## 🚦 Project Status
 
