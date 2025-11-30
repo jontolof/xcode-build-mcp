@@ -55,7 +55,6 @@ func (e *Executor) ExecuteCommand(ctx context.Context, args []string) (*CommandR
 
 	// Read stdout - use safe scanner to handle lines >64KB
 	go func() {
-		defer func() { outputChan <- "" }()
 		scanner := newSafeScanner(stdout)
 		var output strings.Builder
 		for scanner.Scan() {
@@ -68,7 +67,6 @@ func (e *Executor) ExecuteCommand(ctx context.Context, args []string) (*CommandR
 
 	// Read stderr - use safe scanner to handle lines >64KB
 	go func() {
-		defer func() { outputChan <- "" }()
 		scanner := newSafeScanner(stderr)
 		var output strings.Builder
 		for scanner.Scan() {
