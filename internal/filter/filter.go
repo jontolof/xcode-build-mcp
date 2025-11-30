@@ -102,10 +102,18 @@ func (f *Filter) Filter(output string) string {
 		f.logDebug("Total input lines: %d", lines)
 		f.logDebug("First 1000 chars: %s", f.truncateString(output, 1000))
 	}
-	
+
 	if f.mode == Verbose {
 		// Even verbose mode needs limits to prevent token overflow
 		return f.filterVerbose(output)
+	}
+
+	// Detect if this is test output and use specialized filtering
+	if f.isTestOutput(output) {
+		if f.debugMode {
+			f.logDebug("Detected test output, using failure-aware filtering")
+		}
+		return f.filterTestOutput(output)
 	}
 
 	f.stats.TotalLines = 0
@@ -314,6 +322,167 @@ func (f *Filter) filterVerbose(output string) string {
 	}
 
 	return result.String()
+}
+
+// isTestOutput detects if this is test output (vs build output)
+func (f *Filter) isTestOutput(output string) bool {
+	// Look for characteristic test output markers
+	return strings.Contains(output, "Test Suite '") ||
+		strings.Contains(output, "Test Case '") ||
+		strings.Contains(output, "** TEST SUCCEEDED **") ||
+		strings.Contains(output, "** TEST FAILED **")
+}
+
+// filterTestOutput implements failure-aware two-pass filtering for test output
+// This ensures test failures are ALWAYS visible, even with large test suites
+func (f *Filter) filterTestOutput(output string) string {
+	f.stats.TotalLines = 0
+	f.stats.FilteredLines = 0
+	f.stats.KeptLines = 0
+	f.stats.SummarizedSections = 0
+
+	// PASS 1: Identify all critical lines (failures, errors, summaries)
+	criticalLines := make(map[int]bool) // line number -> is critical
+	failureLines := make([]string, 0)
+
+	scanner := newSafeScanner(strings.NewReader(output))
+	lineNum := 0
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		lineNum++
+		f.stats.TotalLines++
+
+		// Mark critical lines for ALWAYS keeping
+		if f.isTestCriticalLine(line) {
+			criticalLines[lineNum] = true
+
+			// Collect failure information
+			if strings.Contains(line, " failed (") ||
+			   strings.Contains(line, "** TEST FAILED **") ||
+			   strings.Contains(line, ": error:") {
+				failureLines = append(failureLines, line)
+			}
+		}
+	}
+
+	if f.debugMode {
+		f.logDebug("Pass 1: Found %d critical lines out of %d total", len(criticalLines), lineNum)
+		f.logDebug("Found %d failure indicators", len(failureLines))
+	}
+
+	// PASS 2: Build output - ONLY include critical lines or important context
+	var result strings.Builder
+	scanner = newSafeScanner(strings.NewReader(output))
+	lineNum = 0
+	totalCharsWritten := 0
+	maxChars := f.getMaxCharsForMode()
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		lineNum++
+		cleanLine := strings.TrimSpace(line)
+
+		if cleanLine == "" {
+			continue // Skip empty lines to save space
+		}
+
+		// Check if this is a critical line
+		isCritical := criticalLines[lineNum]
+
+		// Apply mode-specific filtering
+		if f.mode == Minimal {
+			// Minimal mode: ONLY final result and errors
+			isMinimalCritical := strings.Contains(line, "** TEST") ||
+				strings.Contains(line, "** BUILD") ||
+				strings.Contains(line, "** CLEAN") ||
+				strings.Contains(line, ": error:") ||
+				strings.Contains(line, ": fatal error:")
+			if !isMinimalCritical {
+				f.stats.FilteredLines++
+				continue
+			}
+		} else if f.mode == Standard {
+			// Standard mode: ONLY show critical lines (failures, errors, final summary)
+			// This dramatically reduces output while preserving failure information
+			if !isCritical {
+				// Skip non-critical lines (passing test details, build noise, etc.)
+				f.stats.FilteredLines++
+				continue
+			}
+		}
+
+		// Apply compilation noise filtering
+		if f.isCompilationNoise(line) {
+			f.stats.FilteredLines++
+			continue
+		}
+
+		// Check character limit
+		lineToWrite := line
+		if len(lineToWrite) > 200 {
+			lineToWrite = lineToWrite[:200] + "..."
+		}
+
+		if totalCharsWritten+len(lineToWrite)+1 > maxChars {
+			// If we're truncating and have failures, add a helpful message
+			if len(failureLines) > 0 {
+				result.WriteString(fmt.Sprintf("\n... (output truncated at %d chars, %d test failures detected above)\n", maxChars, len(failureLines)))
+			} else {
+				result.WriteString(fmt.Sprintf("\n... (output truncated at %d chars)\n", maxChars))
+			}
+			break
+		}
+
+		result.WriteString(lineToWrite)
+		result.WriteString("\n")
+		f.stats.KeptLines++
+		totalCharsWritten += len(lineToWrite) + 1
+	}
+
+	finalOutput := result.String()
+
+	if f.debugMode {
+		f.logDebug("=== Test Filter Output Stats ===")
+		f.logDebug("Input lines: %d", f.stats.TotalLines)
+		f.logDebug("Output lines: %d", f.stats.KeptLines)
+		f.logDebug("Filtered lines: %d", f.stats.FilteredLines)
+		f.logDebug("Output length: %d chars", len(finalOutput))
+		f.logDebug("Critical lines kept: %d", len(criticalLines))
+		if len(output) > 0 {
+			reduction := (1.0 - float64(len(finalOutput))/float64(len(output))) * 100
+			f.logDebug("Reduction: %.1f%%", reduction)
+		}
+	}
+
+	return finalOutput
+}
+
+// isTestCriticalLine identifies lines that must always be kept in test output
+func (f *Filter) isTestCriticalLine(line string) bool {
+	// ALWAYS keep these critical patterns
+	criticalPatterns := []string{
+		"** TEST SUCCEEDED **",
+		"** TEST FAILED **",
+		"Test Suite 'All tests'", // Final summary only
+		" failed (", // Failed test case
+		" tests failed,", // Test summary line
+		": error:",
+		": fatal error:",
+	}
+
+	for _, pattern := range criticalPatterns {
+		if strings.Contains(line, pattern) {
+			return true
+		}
+	}
+
+	// Keep "Executed X tests" summary lines (these are important)
+	if strings.Contains(line, "\t Executed ") || strings.Contains(line, "Executed ") {
+		return true
+	}
+
+	return false
 }
 
 func (f *Filter) evaluateLine(line string, context *FilterContext) FilterAction {

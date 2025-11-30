@@ -310,6 +310,18 @@ func (p *XCResultParser) parseTests(tests []interface{}, summary *XCResultSummar
 			}
 		case "skipped":
 			summary.SkippedTests++
+		case "expected failure", "expectedfailure":
+			// Expected failures: tests that were expected to fail and did
+			// Count as skipped since they don't affect pass/fail status
+			summary.SkippedTests++
+		default:
+			// Unknown status - log for debugging and count as skipped
+			// This prevents tests from disappearing from totals
+			if os.Getenv("MCP_LOG_LEVEL") == "debug" {
+				fmt.Fprintf(os.Stderr, "[xcresult] Warning: Unknown test status '%s' for test '%s', counting as skipped\n",
+					testCase.Status, testCase.Name)
+			}
+			summary.SkippedTests++
 		}
 	}
 }

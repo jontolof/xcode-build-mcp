@@ -1,10 +1,12 @@
 package tools
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/jontolof/xcode-build-mcp/internal/common"
@@ -72,6 +74,55 @@ func (t *XcodeTestTool) Description() string {
 
 func (t *XcodeTestTool) InputSchema() map[string]interface{} {
 	return t.schema
+}
+
+// fixMisleadingSummary replaces misleading "passed" summaries with accurate failure counts
+// This handles silent test failures that only appear in xcresult bundles
+func fixMisleadingSummary(output string, totalTests, passedTests, failedTests, skippedTests int) string {
+	var result strings.Builder
+	scanner := bufio.NewScanner(strings.NewReader(output))
+	foundSummary := false
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// Look for the final "All tests" summary line - this is what we need to fix
+		if strings.Contains(line, "Test Suite 'All tests'") && strings.Contains(line, "passed at") {
+			// Replace with accurate summary
+			timestamp := ""
+			if idx := strings.Index(line, "at "); idx != -1 {
+				timestamp = line[idx+3:]
+			}
+			if timestamp != "" {
+				result.WriteString(fmt.Sprintf("Test Suite 'All tests' finished at %s\n", timestamp))
+			} else {
+				result.WriteString("Test Suite 'All tests' finished.\n")
+			}
+			foundSummary = true
+			continue
+		}
+
+		// Look for "Executed X tests, with 0 failures" right after "All tests" line
+		// This is the misleading summary we need to replace
+		if foundSummary && strings.Contains(line, "Executed") && strings.Contains(line, "with 0 failures") {
+			// Replace with accurate counts, including skipped tests if any
+			if skippedTests > 0 {
+				result.WriteString(fmt.Sprintf("\t Executed %d tests, with %d failures (%d passed, %d skipped)\n",
+					totalTests, failedTests, passedTests, skippedTests))
+			} else {
+				result.WriteString(fmt.Sprintf("\t Executed %d tests, with %d failures (%d passed)\n",
+					totalTests, failedTests, passedTests))
+			}
+			foundSummary = false // Reset flag
+			continue
+		}
+
+		// Keep all other lines as-is
+		result.WriteString(line)
+		result.WriteString("\n")
+	}
+
+	return result.String()
 }
 
 func (t *XcodeTestTool) Execute(ctx context.Context, args map[string]interface{}) (string, error) {
@@ -173,10 +224,11 @@ func (t *XcodeTestTool) Execute(ctx context.Context, args map[string]interface{}
 		if xcresultErr != nil {
 			t.logger.Printf("XCResult parsing failed: %v", xcresultErr)
 		} else {
-			t.logger.Printf("XCResult parsing succeeded: %d total, %d passed, %d failed",
+			t.logger.Printf("XCResult parsing succeeded: %d total, %d passed, %d failed, %d skipped",
 				xcresultSummary.TotalTests,
 				xcresultSummary.PassedTests,
-				xcresultSummary.FailedTestCount)
+				xcresultSummary.FailedTestCount,
+				xcresultSummary.SkippedTests)
 			if len(xcresultSummary.FailedTestDetails) > 0 {
 				t.logger.Printf("Failed tests from xcresult:")
 				for _, failure := range xcresultSummary.FailedTestDetails {
@@ -282,6 +334,43 @@ func (t *XcodeTestTool) Execute(ctx context.Context, args map[string]interface{}
 	// Apply filtering
 	outputFilter := filter.NewFilter(filter.OutputMode(params.OutputMode))
 	filteredOutput := outputFilter.Filter(result.Output)
+
+	// IMPORTANT: Handle silent test failures - fix misleading output
+	// Some test failures (especially ViewInspector tests) don't appear in xcodebuild text output
+	// but are present in the .xcresult bundle. We must show these to the LLM accurately.
+	if len(testResult.TestSummary.FailedTestsDetails) > 0 {
+		// Check if failures are already visible in filtered output
+		hasFailuresInOutput := false
+		for _, failure := range testResult.TestSummary.FailedTestsDetails {
+			if strings.Contains(filteredOutput, failure.Name) {
+				hasFailuresInOutput = true
+				break
+			}
+		}
+
+		// If failures aren't in the filtered output, we have silent failures
+		if !hasFailuresInOutput {
+			// Replace misleading "passed" summary with accurate one
+			filteredOutput = fixMisleadingSummary(filteredOutput, testResult.TestSummary.TotalTests,
+				testResult.TestSummary.PassedTests, testResult.TestSummary.FailedTests,
+				testResult.TestSummary.SkippedTests)
+
+			// Append detailed failure list
+			var failureSection strings.Builder
+			failureSection.WriteString("\n=== Failed Tests ===\n")
+			for _, failure := range testResult.TestSummary.FailedTestsDetails {
+				failureSection.WriteString(fmt.Sprintf("❌ %s.%s\n", failure.ClassName, failure.Name))
+				if failure.Message != "" {
+					failureSection.WriteString(fmt.Sprintf("   %s\n", failure.Message))
+				}
+				if failure.Duration > 0 {
+					failureSection.WriteString(fmt.Sprintf("   Duration: %v\n", failure.Duration))
+				}
+			}
+			filteredOutput += failureSection.String()
+		}
+	}
+
 	testResult.FilteredOutput = filteredOutput
 
 	// Convert test bundles to map format for JSON response
@@ -299,9 +388,10 @@ func (t *XcodeTestTool) Execute(ctx context.Context, args map[string]interface{}
 
 	// Build test summary with optional warning fields
 	testSummaryMap := map[string]interface{}{
-		"total_tests":  testResult.TestSummary.TotalTests,
-		"passed_tests": testResult.TestSummary.PassedTests,
-		"failed_tests": testResult.TestSummary.FailedTests,
+		"total_tests":   testResult.TestSummary.TotalTests,
+		"passed_tests":  testResult.TestSummary.PassedTests,
+		"failed_tests":  testResult.TestSummary.FailedTests,
+		"skipped_tests": testResult.TestSummary.SkippedTests,
 	}
 	// Include warning fields if set (indicates parsing issues)
 	if testResult.TestSummary.ParsingWarning != "" {
