@@ -46,20 +46,20 @@ var (
 	cleanFailedRegex  = regexp.MustCompile(`\*\* CLEAN FAILED \*\*`)
 
 	// Crash detection patterns
-	testRunnerCrashedRegex      = regexp.MustCompile(`Test runner.*crashed|Testing failed.*crashed`)
-	connectionInterruptedRegex  = regexp.MustCompile(`Connection interrupted|Connection with the remote side was unexpectedly closed`)
-	earlyExitRegex              = regexp.MustCompile(`Early unexpected exit|operation never finished bootstrapping`)
-	neverBeganTestingRegex      = regexp.MustCompile(`Test runner never began executing tests`)
-	failedToLoadBundleRegex     = regexp.MustCompile(`Failed to load the test bundle`)
-	simulatorBootTimeoutRegex   = regexp.MustCompile(`Simulator.*timed out|Failed to boot simulator`)
-	testProcessCrashedRegex     = regexp.MustCompile(`Test process crashed`)
+	testRunnerCrashedRegex     = regexp.MustCompile(`Test runner.*crashed|Testing failed.*crashed`)
+	connectionInterruptedRegex = regexp.MustCompile(`Connection interrupted|Connection with the remote side was unexpectedly closed`)
+	earlyExitRegex             = regexp.MustCompile(`Early unexpected exit|operation never finished bootstrapping`)
+	neverBeganTestingRegex     = regexp.MustCompile(`Test runner never began executing tests`)
+	failedToLoadBundleRegex    = regexp.MustCompile(`Failed to load the test bundle`)
+	simulatorBootTimeoutRegex  = regexp.MustCompile(`Simulator.*timed out|Failed to boot simulator`)
+	testProcessCrashedRegex    = regexp.MustCompile(`Test process crashed`)
 
 	// Swift runtime crash patterns
-	swiftFatalErrorRegex        = regexp.MustCompile(`Fatal error:`)
-	swiftPreconditionRegex      = regexp.MustCompile(`Precondition failed:`)
-	swiftAssertionRegex         = regexp.MustCompile(`Assertion failed:`)
-	swiftForceUnwrapRegex       = regexp.MustCompile(`Unexpectedly found nil while (unwrapping|implicitly unwrapping)`)
-	swiftIndexOutOfBoundsRegex  = regexp.MustCompile(`Index out of (range|bounds)`)
+	swiftFatalErrorRegex       = regexp.MustCompile(`Fatal error:`)
+	swiftPreconditionRegex     = regexp.MustCompile(`Precondition failed:`)
+	swiftAssertionRegex        = regexp.MustCompile(`Assertion failed:`)
+	swiftForceUnwrapRegex      = regexp.MustCompile(`Unexpectedly found nil while (unwrapping|implicitly unwrapping)`)
+	swiftIndexOutOfBoundsRegex = regexp.MustCompile(`Index out of (range|bounds)`)
 )
 
 func (p *Parser) ParseBuildOutput(output string) *types.BuildResult {

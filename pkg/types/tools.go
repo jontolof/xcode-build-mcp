@@ -122,12 +122,12 @@ type TestResult struct {
 	ExitCode       int           `json:"exit_code"`
 
 	// Crash detection fields
-	CrashType        CrashType        `json:"crash_type"`
-	ProcessCrashed   bool             `json:"process_crashed"`
-	ProcessState     *ProcessState    `json:"process_state,omitempty"`
-	CrashIndicators  CrashIndicators  `json:"crash_indicators,omitempty"`
-	SimulatorCrashes []CrashReport    `json:"simulator_crashes,omitempty"`
-	SilentFailure    bool             `json:"silent_failure"`
+	CrashType        CrashType       `json:"crash_type"`
+	ProcessCrashed   bool            `json:"process_crashed"`
+	ProcessState     *ProcessState   `json:"process_state,omitempty"`
+	CrashIndicators  CrashIndicators `json:"crash_indicators,omitempty"`
+	SimulatorCrashes []CrashReport   `json:"simulator_crashes,omitempty"`
+	SilentFailure    bool            `json:"silent_failure"`
 }
 
 type TestSummary struct {

@@ -16,8 +16,8 @@ import (
 // very long lines without truncation. Default is 64KB which can be exceeded.
 func newSafeScanner(r io.Reader) *bufio.Scanner {
 	scanner := bufio.NewScanner(r)
-	buf := make([]byte, 0, 1024*1024)    // 1MB initial
-	scanner.Buffer(buf, 10*1024*1024)     // 10MB max
+	buf := make([]byte, 0, 1024*1024) // 1MB initial
+	scanner.Buffer(buf, 10*1024*1024) // 10MB max
 	return scanner
 }
 
@@ -69,7 +69,7 @@ func NewFilter(mode OutputMode) *Filter {
 		},
 		debugMode: os.Getenv("MCP_FILTER_DEBUG") == "true",
 	}
-	
+
 	// Enable debug logging if requested
 	if f.debugMode {
 		logDir := os.Getenv("MCP_FILTER_DEBUG_DIR")
@@ -78,7 +78,7 @@ func NewFilter(mode OutputMode) *Filter {
 		}
 		timestamp := time.Now().Format("20060102_150405")
 		logFile := filepath.Join(logDir, fmt.Sprintf("mcp_filter_%s_%s.log", mode, timestamp))
-		
+
 		if file, err := os.Create(logFile); err == nil {
 			f.debugFile = file
 			f.logDebug("=== Filter Debug Log Started ===")
@@ -87,7 +87,7 @@ func NewFilter(mode OutputMode) *Filter {
 			log.Printf("Filter debug logging to: %s", logFile)
 		}
 	}
-	
+
 	return f
 }
 
@@ -166,7 +166,7 @@ func (f *Filter) Filter(output string) string {
 			// Handle empty lines
 			if cleanLine == "" {
 				// Check if even a newline would exceed limit
-				if totalCharsWritten + 1 > maxChars {
+				if totalCharsWritten+1 > maxChars {
 					truncMsg := fmt.Sprintf("\n... (char limit reached: %d chars)\n", maxChars)
 					result.WriteString(truncMsg)
 					limitReached = true
@@ -187,7 +187,7 @@ func (f *Filter) Filter(output string) string {
 			}
 
 			// Check if adding this line would exceed char limit
-			if totalCharsWritten + len(lineToWrite) + 1 > maxChars {
+			if totalCharsWritten+len(lineToWrite)+1 > maxChars {
 				truncMsg := fmt.Sprintf("\n... (char limit reached: %d chars)\n", maxChars)
 				result.WriteString(truncMsg)
 				limitReached = true
@@ -215,7 +215,7 @@ func (f *Filter) Filter(output string) string {
 	}
 
 	finalOutput := result.String()
-	
+
 	// Log final stats
 	if f.debugMode {
 		f.logDebug("=== Filter Output Stats ===")
@@ -225,13 +225,13 @@ func (f *Filter) Filter(output string) string {
 		f.logDebug("Output length: %d chars", len(finalOutput))
 		f.logDebug("Estimated output tokens: %d", len(finalOutput)/4)
 		if len(output) > 0 {
-			reduction := (1.0 - float64(len(finalOutput))/float64(len(output)))*100
+			reduction := (1.0 - float64(len(finalOutput))/float64(len(output))) * 100
 			f.logDebug("Reduction: %.1f%%", reduction)
 		}
 		f.logDebug("First 1000 chars of output: %s", f.truncateString(finalOutput, 1000))
 		f.logDebug("=== End Filter ===")
 	}
-	
+
 	return finalOutput
 }
 
@@ -359,8 +359,8 @@ func (f *Filter) filterTestOutput(output string) string {
 
 			// Collect failure information
 			if strings.Contains(line, " failed (") ||
-			   strings.Contains(line, "** TEST FAILED **") ||
-			   strings.Contains(line, ": error:") {
+				strings.Contains(line, "** TEST FAILED **") ||
+				strings.Contains(line, ": error:") {
 				failureLines = append(failureLines, line)
 			}
 		}
@@ -465,8 +465,8 @@ func (f *Filter) isTestCriticalLine(line string) bool {
 		"** TEST SUCCEEDED **",
 		"** TEST FAILED **",
 		"Test Suite 'All tests'", // Final summary only
-		" failed (", // Failed test case
-		" tests failed,", // Test summary line
+		" failed (",              // Failed test case
+		" tests failed,",         // Test summary line
 		": error:",
 		": fatal error:",
 	}
@@ -508,7 +508,7 @@ func (f *Filter) evaluateLine(line string, context *FilterContext) FilterAction 
 		"Build settings from command line:",
 		"xcodebuild: error:",
 	}
-	
+
 	for _, pattern := range criticalPatterns {
 		if strings.Contains(line, pattern) {
 			f.recordRuleUsage("critical-always-keep")
@@ -613,7 +613,7 @@ func (f *Filter) evaluateStandardMode(line string, context *FilterContext) Filte
 		f.recordRuleUsage("target-progress-keep")
 		return Keep // Keep target build indicators
 	}
-	
+
 	if strings.Contains(line, "[") && strings.Contains(line, "%]") {
 		f.recordRuleUsage("percentage-progress-keep")
 		return Keep // Keep percentage progress
@@ -630,20 +630,20 @@ func (f *Filter) evaluateStandardMode(line string, context *FilterContext) Filte
 		f.recordRuleUsage("config-keep")
 		return Keep
 	}
-	
+
 	// Keep package resolution info (important for debugging)
 	if strings.Contains(line, "Resolve Package") || strings.Contains(line, "Resolved source packages") {
 		f.recordRuleUsage("package-keep")
 		return Keep
 	}
-	
+
 	// Keep command invocation
 	if strings.Contains(line, "Command line invocation") || strings.Contains(line, "/xcodebuild") {
 		f.recordRuleUsage("command-keep")
 		return Keep
 	}
-	
-	// Keep important metadata  
+
+	// Keep important metadata
 	if strings.Contains(line, "appintentsmetadataprocessor") && strings.Contains(line, "warning") {
 		f.recordRuleUsage("metadata-warning-keep")
 		return Keep

@@ -325,7 +325,7 @@ func (t *XcodeBuildTool) formatBuildResponse(result *types.BuildResult, outputFi
 			response["summary"] = fmt.Sprintf("Build FAILED with exit code %d (check errors in output)", result.ExitCode)
 		}
 	}
-	
+
 	// If verbose mode and output is suspiciously small, add a note
 	stats := outputFilter.GetStats()
 	if len(result.FilteredOutput) < 1000 && stats.TotalLines > 50 {
