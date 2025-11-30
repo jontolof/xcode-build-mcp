@@ -2,6 +2,8 @@ package xcode
 
 import (
 	"bufio"
+	"fmt"
+	"io"
 	"regexp"
 	"strconv"
 	"strings"
@@ -31,7 +33,9 @@ var (
 	testFailedRegex  = regexp.MustCompile(`\*\* TEST FAILED \*\*`)
 	testCaseRegex    = regexp.MustCompile(`Test Case '(.+?)' (passed|failed|started) \((\d+\.\d+) seconds\)`)
 	testSuiteRegex   = regexp.MustCompile(`Test Suite '(.+?)' (passed|failed|started)`)
-	testSuiteCountRegex = regexp.MustCompile(`Executed (\d+) tests?, with (\d+) failures? .* in ([\d.]+) seconds`)
+	// Updated regex to handle Xcode 17+ timing format: "in 0.083 (0.085) seconds"
+	// The optional (?:\s*\([\d.]+\))? matches the parenthetical wall-clock time
+	testSuiteCountRegex = regexp.MustCompile(`Executed (\d+) tests?, with (\d+) failures? .* in ([\d.]+)(?:\s*\([\d.]+\))? seconds`)
 
 	// Archive/export paths
 	archiveRegex = regexp.MustCompile(`Archive path: (.+\.xcarchive)`)
@@ -66,7 +70,7 @@ func (p *Parser) ParseBuildOutput(output string) *types.BuildResult {
 		ArtifactPaths: []string{},
 	}
 
-	scanner := bufio.NewScanner(strings.NewReader(output))
+	scanner := newSafeScanner(strings.NewReader(output))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
@@ -148,9 +152,11 @@ func (p *Parser) ParseTestOutput(output string) *types.TestResult {
 	var currentTest *types.TestCase
 	testBundles := make(map[string]*types.TestBundle)
 	var lastBundleName string
+	lineCount := 0
 
-	scanner := bufio.NewScanner(strings.NewReader(output))
+	scanner := newSafeScanner(strings.NewReader(output))
 	for scanner.Scan() {
+		lineCount++
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
 			continue
@@ -250,6 +256,14 @@ func (p *Parser) ParseTestOutput(output string) *types.TestResult {
 		}
 	}
 
+	// CRITICAL: Check for scanner errors that would silently drop output
+	if err := scanner.Err(); err != nil {
+		// Scanner hit an error - this means we lost data!
+		result.TestSummary.ParsingWarning = fmt.Sprintf("Scanner error after line %d: %v. Test results may be incomplete.", lineCount, err)
+		result.TestSummary.UnparsedFailures = true
+		result.Success = false
+	}
+
 	// Convert map to slice
 	for _, bundle := range testBundles {
 		result.TestSummary.TestBundles = append(result.TestSummary.TestBundles, *bundle)
@@ -280,7 +294,7 @@ func (p *Parser) ParseCleanOutput(output string) *types.CleanResult {
 		CleanedPaths: []string{},
 	}
 
-	scanner := bufio.NewScanner(strings.NewReader(output))
+	scanner := newSafeScanner(strings.NewReader(output))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
@@ -314,7 +328,7 @@ func (p *Parser) ExtractBuildSettings(output string) map[string]interface{} {
 	settings := make(map[string]interface{})
 
 	// Look for build settings in the output
-	scanner := bufio.NewScanner(strings.NewReader(output))
+	scanner := newSafeScanner(strings.NewReader(output))
 	inBuildSettings := false
 
 	for scanner.Scan() {
@@ -361,7 +375,7 @@ func (p *Parser) IsSuccess(output string, commandType string) bool {
 func (p *Parser) ExtractErrors(output string) []types.BuildError {
 	var errors []types.BuildError
 
-	scanner := bufio.NewScanner(strings.NewReader(output))
+	scanner := newSafeScanner(strings.NewReader(output))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 
@@ -395,7 +409,7 @@ func (p *Parser) ExtractErrors(output string) []types.BuildError {
 func (p *Parser) ExtractWarnings(output string) []types.BuildWarning {
 	var warnings []types.BuildWarning
 
-	scanner := bufio.NewScanner(strings.NewReader(output))
+	scanner := newSafeScanner(strings.NewReader(output))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 
@@ -427,7 +441,7 @@ func (p *Parser) ExtractWarnings(output string) []types.BuildWarning {
 func (p *Parser) ParseSchemes(output string) []string {
 	var schemes []string
 
-	scanner := bufio.NewScanner(strings.NewReader(output))
+	scanner := newSafeScanner(strings.NewReader(output))
 	inSchemesSection := false
 
 	for scanner.Scan() {
@@ -462,7 +476,7 @@ func (p *Parser) ParseSchemes(output string) []string {
 func (p *Parser) ParseTargets(output string) []string {
 	var targets []string
 
-	scanner := bufio.NewScanner(strings.NewReader(output))
+	scanner := newSafeScanner(strings.NewReader(output))
 	inTargetsSection := false
 
 	for scanner.Scan() {
@@ -498,7 +512,7 @@ func (p *Parser) ParseTargets(output string) []string {
 func (p *Parser) DetectCrashIndicators(output string) types.CrashIndicators {
 	indicators := types.CrashIndicators{}
 
-	scanner := bufio.NewScanner(strings.NewReader(output))
+	scanner := newSafeScanner(strings.NewReader(output))
 	for scanner.Scan() {
 		line := scanner.Text()
 
@@ -560,4 +574,46 @@ func (p *Parser) DetectSilentFailure(output string, exitCode int) bool {
 	}
 
 	return false
+}
+
+// ValidateTestResults validates parsed test results against exit code.
+// This is a critical fallback: if exit code 65 indicates test failures occurred,
+// but the parser found no failures (due to regex mismatch or output format changes),
+// this function sets appropriate warnings and flags.
+func (p *Parser) ValidateTestResults(result *types.TestResult, exitCode int) {
+	// Exit code 65 specifically means test failures occurred in xcodebuild
+	if exitCode == 65 && result.TestSummary.FailedTests == 0 {
+		result.TestSummary.UnparsedFailures = true
+		result.TestSummary.ParsingWarning = "Exit code 65 indicates test failures occurred, but none were parsed from output. " +
+			"This may be due to Xcode output format changes or truncated output. " +
+			"Check Xcode directly for actual failure details."
+		result.Success = false
+
+		// If we have total tests but no failures parsed, estimate based on exit code
+		// We know at least 1 test failed
+		if result.TestSummary.TotalTests > 0 && result.TestSummary.PassedTests == result.TestSummary.TotalTests {
+			// Adjust: we can't know exact count, but passed can't equal total if failures exist
+			result.TestSummary.ParsingWarning += " Passed test count may be inaccurate."
+		}
+	}
+
+	// Also check for ** TEST FAILED ** marker without parsed failures
+	if testFailedRegex.MatchString(result.Output) && result.TestSummary.FailedTests == 0 {
+		if !result.TestSummary.UnparsedFailures {
+			result.TestSummary.UnparsedFailures = true
+			result.TestSummary.ParsingWarning = "Test output contains '** TEST FAILED **' but no individual test failures were parsed."
+		}
+		result.Success = false
+	}
+}
+
+// newSafeScanner creates a bufio.Scanner with a larger buffer to handle
+// very long lines (e.g., stack traces, JSON output) without truncation.
+// Default bufio.Scanner has a 64KB limit which can be exceeded by xcodebuild.
+func newSafeScanner(r io.Reader) *bufio.Scanner {
+	scanner := bufio.NewScanner(r)
+	// 1MB initial buffer, 10MB max - handles even very large stack traces
+	buf := make([]byte, 0, 1024*1024)
+	scanner.Buffer(buf, 10*1024*1024)
+	return scanner
 }

@@ -1,7 +1,6 @@
 package xcode
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"os"
@@ -54,10 +53,10 @@ func (e *Executor) ExecuteCommand(ctx context.Context, args []string) (*CommandR
 	// Capture output
 	outputChan := make(chan string, 2)
 
-	// Read stdout
+	// Read stdout - use safe scanner to handle lines >64KB
 	go func() {
 		defer func() { outputChan <- "" }()
-		scanner := bufio.NewScanner(stdout)
+		scanner := newSafeScanner(stdout)
 		var output strings.Builder
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -67,10 +66,10 @@ func (e *Executor) ExecuteCommand(ctx context.Context, args []string) (*CommandR
 		outputChan <- output.String()
 	}()
 
-	// Read stderr
+	// Read stderr - use safe scanner to handle lines >64KB
 	go func() {
 		defer func() { outputChan <- "" }()
-		scanner := bufio.NewScanner(stderr)
+		scanner := newSafeScanner(stderr)
 		var output strings.Builder
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -429,7 +428,11 @@ func classifyExitCode(exitCode int) types.CrashType {
 	case 0:
 		return types.CrashTypeNone
 	case 65:
-		// Code signing, simulator timeout, or dependency issues
+		// Exit code 65 from xcodebuild specifically indicates test failures occurred.
+		// This is NOT a build failure - tests compiled and ran, but some assertions failed.
+		return types.CrashTypeTestFailure
+	case 66:
+		// Build failed (compilation errors, linking errors, etc.)
 		return types.CrashTypeBuildFailure
 	case 70:
 		// Target not found, version mismatch, or device issues

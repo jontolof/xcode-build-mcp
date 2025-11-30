@@ -138,6 +138,10 @@ type TestSummary struct {
 	TestResults        []TestCase   `json:"test_results"`
 	FailedTestsDetails []TestCase   `json:"failed_tests_details,omitempty"`
 	TestBundles        []TestBundle `json:"test_bundles,omitempty"`
+	// ParsingWarning is set when exit code indicates failures but parsing found none
+	ParsingWarning string `json:"parsing_warning,omitempty"`
+	// UnparsedFailures is true when exit code 65 but FailedTests == 0
+	UnparsedFailures bool `json:"unparsed_failures,omitempty"`
 }
 
 type TestCase struct {

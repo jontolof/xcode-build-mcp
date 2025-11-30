@@ -3,6 +3,7 @@ package filter
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -10,6 +11,15 @@ import (
 	"strings"
 	"time"
 )
+
+// newSafeScanner creates a bufio.Scanner with a larger buffer to handle
+// very long lines without truncation. Default is 64KB which can be exceeded.
+func newSafeScanner(r io.Reader) *bufio.Scanner {
+	scanner := bufio.NewScanner(r)
+	buf := make([]byte, 0, 1024*1024)    // 1MB initial
+	scanner.Buffer(buf, 10*1024*1024)     // 10MB max
+	return scanner
+}
 
 type OutputMode string
 
@@ -104,7 +114,7 @@ func (f *Filter) Filter(output string) string {
 	f.stats.SummarizedSections = 0
 
 	var result strings.Builder
-	scanner := bufio.NewScanner(strings.NewReader(output))
+	scanner := newSafeScanner(strings.NewReader(output))
 
 	// Track context for better filtering decisions
 	context := &FilterContext{
@@ -119,6 +129,7 @@ func (f *Filter) Filter(output string) string {
 	maxLines := f.getMaxLinesForMode()
 	maxChars := f.getMaxCharsForMode()
 	totalCharsWritten := 0
+	limitReached := false
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -143,20 +154,21 @@ func (f *Filter) Filter(output string) string {
 			// Check char limit FIRST, before any writing
 			lineToWrite := line
 			cleanLine := strings.TrimSpace(line)
-			
+
 			// Handle empty lines
 			if cleanLine == "" {
 				// Check if even a newline would exceed limit
 				if totalCharsWritten + 1 > maxChars {
 					truncMsg := fmt.Sprintf("\n... (char limit reached: %d chars)\n", maxChars)
 					result.WriteString(truncMsg)
+					limitReached = true
 					break
 				}
 				result.WriteString("\n")
 				totalCharsWritten++
 				continue // Don't count toward line limit, but we DID check char limit
 			}
-			
+
 			// Strict length check for very long lines
 			maxLineLength := 200
 			if f.mode == Verbose {
@@ -165,14 +177,15 @@ func (f *Filter) Filter(output string) string {
 			if len(lineToWrite) > maxLineLength {
 				lineToWrite = lineToWrite[:maxLineLength] + "..."
 			}
-			
+
 			// Check if adding this line would exceed char limit
 			if totalCharsWritten + len(lineToWrite) + 1 > maxChars {
 				truncMsg := fmt.Sprintf("\n... (char limit reached: %d chars)\n", maxChars)
 				result.WriteString(truncMsg)
+				limitReached = true
 				break
 			}
-			
+
 			result.WriteString(lineToWrite)
 			result.WriteString("\n")
 			f.stats.KeptLines++
@@ -185,6 +198,11 @@ func (f *Filter) Filter(output string) string {
 			result.WriteString("\n")
 			f.stats.KeptLines++
 			f.stats.SummarizedSections++
+		}
+
+		// Break from outer loop if limit was reached
+		if limitReached {
+			break
 		}
 	}
 
@@ -237,33 +255,34 @@ func (f *Filter) Close() {
 func (f *Filter) getMaxLinesForMode() int {
 	switch f.mode {
 	case Minimal:
-		return 10 // Drastically reduced: ~250 tokens max
+		return 100 // ~1250 tokens max (increased for error details)
 	case Standard:
-		return 50 // Reduced from 200: ~1250 tokens max
+		return 800 // ~10000 tokens max (sufficient for test failures)
 	case Verbose:
-		return 200 // Reduced from 800: ~5000 tokens max
+		return 4000 // ~50000 tokens max (comprehensive output)
 	default:
-		return 50
+		return 800
 	}
 }
 
 // getMaxCharsForMode returns character limit to prevent token overflow
+// Updated limits based on MCP 2025 best practices (1MB max, ~250K tokens)
 func (f *Filter) getMaxCharsForMode() int {
 	switch f.mode {
 	case Minimal:
-		return 1000 // VERY strict: ~250 tokens max
+		return 5000 // ~1250 tokens (increased for error details)
 	case Standard:
-		return 5000 // Strict: ~1250 tokens max
+		return 40000 // ~10000 tokens (reasonable for test output with failures)
 	case Verbose:
-		return 80000 // Increased: ~20000 tokens max (still under 25k limit)
+		return 200000 // ~50000 tokens (comprehensive output, still well under 1MB)
 	default:
-		return 5000
+		return 40000
 	}
 }
 
 func (f *Filter) filterVerbose(output string) string {
 	var result strings.Builder
-	scanner := bufio.NewScanner(strings.NewReader(output))
+	scanner := newSafeScanner(strings.NewReader(output))
 	lineCount := 0
 	maxLines := 800 // ~20000 tokens
 
