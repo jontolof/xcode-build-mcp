@@ -1,29 +1,25 @@
 # Xcode Build Server MCP
 
-A highly optimized Model Context Protocol (MCP) server for Xcode operations that reduces token usage by 83% while maintaining full functionality for iOS/macOS development workflows.
+A lightweight Model Context Protocol (MCP) server for Xcode operations, designed with token efficiency and simplicity in mind.
 
-## 🎯 Key Features
+## Key Features
 
-- **83% Token Reduction**: From ~47,000 to ~8,000 tokens (14 tools vs 83)
-- **90%+ Output Filtering**: Intelligent filtering of verbose xcodebuild output
-- **Smart Auto-Detection**: Automatically detects project types and selects appropriate simulators
-- **Unified Interface**: Single tools for multiple scenarios instead of variant proliferation
-- **Zero Dependencies**: Built with Go standard library for maximum reliability
-- **Real-time Streaming**: Progressive output for long-running operations
-- **Intelligent Caching**: LRU cache for frequently accessed project data
+- **14 Unified Tools** - Complete Xcode workflow coverage with minimal tool count
+- **Intelligent Output Filtering** - Reduces verbose xcodebuild output by 80-95% while preserving errors and failures
+- **Failure-Aware** - Two-pass filtering guarantees test failures and build errors are never hidden
+- **Smart Auto-Detection** - Automatically detects project types and selects appropriate simulators
+- **Zero Dependencies** - Built entirely with Go standard library
+- **Crash Detection** - Identifies segfaults, Swift fatal errors, and silent failures
 
-## 📊 Why This Project?
+## Design Philosophy
 
-Popular xcode-build MCP implementation suffers from severe tool proliferation:
-- 83 redundant tools consuming ~47,000 tokens
-- Separate tools for project vs workspace (2x duplication)
-- Separate tools for simulator name vs ID (2x duplication)  
-- Separate tools for each platform (4x multiplication)
-- Most developers use <10% of available tools
+This server takes a minimalist approach:
 
-Our solution consolidates everything into **14 essential tools** that cover 100% of common workflows.
+- **Unified tools** instead of separate variants for project/workspace, simulator name/ID, etc.
+- **Filtered output** that removes compilation noise while keeping actionable information
+- **Simple configuration** with sensible defaults
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -77,7 +73,7 @@ Add to your MCP client configuration:
 }
 ```
 
-## 🛠️ The 14 Essential Tools
+## The 14 Tools
 
 ### Build & Test Tools
 
@@ -265,38 +261,34 @@ Extract app metadata and information.
 }
 ```
 
-## 📈 Performance
+## Output Filtering
 
-### Token Usage Comparison
+Raw xcodebuild output can be extremely verbose (100K+ characters for a typical test run). This server filters output to show what matters:
 
-| Metric | Current Implementation | Our Implementation | Improvement |
-|--------|----------------------|-------------------|-------------|
-| Tool Count | 83 tools | 14 tools | 83% reduction |
-| Token Usage | ~47,000 | ~8,000 | 83% reduction |
-| Output Verbosity | 100% | <10% | 90%+ filtering |
-| Response Time | Variable | <100ms (cached) | Consistent |
+### Output Modes
 
-### Output Filtering Example
+| Mode | Description | Use Case |
+|------|-------------|----------|
+| `minimal` | Errors and final result only | Quick status checks |
+| `standard` | Errors, warnings, test summaries | Normal development (default) |
+| `verbose` | Full output with reduced noise | Debugging build issues |
 
-**Before (Raw xcodebuild output):**
-```
-CompileSwift normal x86_64 /Users/dev/MyApp/Sources/ViewControllers/LoginViewController.swift (in target 'MyApp' from project 'MyApp')
-    cd /Users/dev/MyApp
-    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift -frontend -c -primary-file...
-[500+ more lines of compilation details]
-```
+### What Gets Filtered
 
-**After (Filtered output):**
-```
-Building MyApp (Debug)...
-✓ Compiled LoginViewController.swift
-✓ Compiled AppDelegate.swift
-✓ Linking MyApp.app
-Build succeeded in 12.3s
-Output: build/Debug-iphonesimulator/MyApp.app
-```
+**Removed** (noise):
+- Compilation command details
+- Framework loading messages
+- SwiftDriver internal output
+- Code signing verbose logs
 
-## 🔧 Configuration
+**Preserved** (important):
+- Build/test success or failure
+- Error messages with file/line info
+- Test failure details
+- Warnings
+- Final summaries
+
+## Configuration
 
 ### Environment Variables
 
@@ -323,7 +315,7 @@ Available modes:
 - `standard` - Errors, warnings, and summary (default)
 - `verbose` - Full build output
 
-## 🧪 Development
+## Development
 
 ### Building from Source
 
@@ -356,7 +348,7 @@ xcode-build-mcp/
 ├── internal/
 │   ├── mcp/            # MCP protocol implementation (JSON-RPC 2.0)
 │   ├── xcode/          # Xcode command execution and parsing
-│   ├── filter/         # Output filtering system (90%+ reduction)
+│   ├── filter/         # Output filtering system
 │   ├── cache/          # Smart caching for project/scheme detection
 │   ├── tools/          # MCP tool implementations (14 tools)
 │   ├── common/         # Shared interfaces and utilities
@@ -387,69 +379,31 @@ make bench
 make coverage
 ```
 
-## 📚 Documentation
+## Documentation
 
 - [CHANGELOG](CHANGELOG.md) - Version history and release notes
-- [Architectural Decision Records](docs/adr/) - Why we made specific design decisions
-- [Documentation Guide](docs/README.md) - Documentation philosophy and structure
-- [Development Guidelines](CLAUDE.md) - Guidelines for working with this codebase
+- [Architectural Decision Records](docs/adr/) - Design decisions and rationale
+- [Contributing](CONTRIBUTING.md) - How to contribute to this project
 
-## 📊 Benchmarks
-
-```bash
-# Token usage benchmark
-Original implementation: 46,950 tokens
-Optimized implementation: 7,910 tokens
-Reduction: 83.15%
-
-# Output filtering benchmark
-Input: 10,000 lines of xcodebuild output
-Filtered output: 847 lines
-Reduction: 91.53%
-Processing time: 8.2ms
-
-# Response time (cached operations)
-discover_projects: 12ms
-list_schemes: 8ms
-list_simulators: 23ms
-xcode_build (cached): 94ms
-```
-
-## 🔒 Security
+## Security
 
 - No sensitive data is logged or cached
 - All user paths are validated
 - Command injection protection
 - Secure handling of build artifacts
 
-## 📝 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
-
-- Inspired by the need for efficient MCP servers
-- Built for the iOS/macOS development community
-- Optimized for AI-assisted development workflows
-
-## 📞 Support
+## Support
 
 - [GitHub Issues](https://github.com/jontolof/xcode-build-mcp/issues) - Bug reports and feature requests
 - [Discussions](https://github.com/jontolof/xcode-build-mcp/discussions) - General discussions
 - [Wiki](https://github.com/jontolof/xcode-build-mcp/wiki) - Additional documentation
 
-## 🚦 Project Status
+## Project Status
 
-**Current Phase**: Production Ready ✅
+This server is stable and actively maintained. All 14 tools are implemented and tested.
 
-- [x] Design specification
-- [x] Implementation plan
-- [x] Core MCP server
-- [x] Tool implementation (14 essential tools)
-- [x] Testing & optimization
-- [x] Output filtering (90%+ reduction)
-- [x] Production release
-
----
-
-Built with ❤️ for the iOS/macOS development community
+See the [CHANGELOG](CHANGELOG.md) for recent updates.
