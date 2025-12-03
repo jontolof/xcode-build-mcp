@@ -300,6 +300,13 @@ func (p *XCResultParser) parseTests(tests []interface{}, summary *XCResultSummar
 			// The entire test class was skipped before any tests ran
 			summary.SkippedTests++
 			testCase.Status = "skipped (class)"
+			// Try to get skip reason from summaryMessage if available
+			if summaryMessage, ok := testMap["summaryMessage"].(map[string]interface{}); ok {
+				if value, ok := summaryMessage["_value"].(string); ok {
+					testCase.Message = value
+				}
+			}
+			// Fall back to generic message if no specific reason found
 			if testCase.Message == "" {
 				testCase.Message = "Test class skipped (likely via @available or conditional compilation)"
 			}
