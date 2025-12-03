@@ -19,7 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 90%+ output reduction while preserving all failures
   - XCResult bundle parsing as authoritative test source
   - Silent test failure handling (ViewInspector tests)
-- Skipped test tracking
+- Skipped test tracking with detailed reporting
+  - `skipped_tests_details` array with class name, test name, status, and reason
+  - Class-level skip detection (via @available or conditional compilation)
+  - Method-level skip detection (via XCTSkip)
   - Complete test accounting (passed + failed + skipped = total)
   - Unknown test status handling with debug warnings
 - Test bundle detection and tracking
