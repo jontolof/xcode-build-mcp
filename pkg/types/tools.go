@@ -131,13 +131,14 @@ type TestResult struct {
 }
 
 type TestSummary struct {
-	TotalTests         int          `json:"total_tests"`
-	PassedTests        int          `json:"passed_tests"`
-	FailedTests        int          `json:"failed_tests"`
-	SkippedTests       int          `json:"skipped_tests"`
-	TestResults        []TestCase   `json:"test_results"`
-	FailedTestsDetails []TestCase   `json:"failed_tests_details,omitempty"`
-	TestBundles        []TestBundle `json:"test_bundles,omitempty"`
+	TotalTests          int          `json:"total_tests"`
+	PassedTests         int          `json:"passed_tests"`
+	FailedTests         int          `json:"failed_tests"`
+	SkippedTests        int          `json:"skipped_tests"`
+	TestResults         []TestCase   `json:"test_results"`
+	FailedTestsDetails  []TestCase   `json:"failed_tests_details,omitempty"`
+	SkippedTestsDetails []TestCase   `json:"skipped_tests_details,omitempty"`
+	TestBundles         []TestBundle `json:"test_bundles,omitempty"`
 	// ParsingWarning is set when exit code indicates failures but parsing found none
 	ParsingWarning string `json:"parsing_warning,omitempty"`
 	// UnparsedFailures is true when exit code 65 but FailedTests == 0

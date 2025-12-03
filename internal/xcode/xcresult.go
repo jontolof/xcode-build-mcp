@@ -26,13 +26,14 @@ func NewXCResultParser() *XCResultParser {
 
 // XCResultSummary represents the parsed summary from an xcresult bundle
 type XCResultSummary struct {
-	TotalTests        int
-	PassedTests       int
-	FailedTestCount   int
-	SkippedTests      int
-	TestBundles       []types.TestBundle
-	FailedTestDetails []types.TestCase
-	Duration          time.Duration
+	TotalTests         int
+	PassedTests        int
+	FailedTestCount    int
+	SkippedTests       int
+	TestBundles        []types.TestBundle
+	FailedTestDetails  []types.TestCase
+	SkippedTestDetails []types.TestCase
+	Duration           time.Duration
 }
 
 // ParseResultBundle parses an xcresult bundle and returns structured test results
@@ -79,8 +80,9 @@ func (p *XCResultParser) runXCResultTool(bundlePath string, args ...string) ([]b
 // extractTestSummary extracts test summary from the parsed xcresult JSON
 func (p *XCResultParser) extractTestSummary(result map[string]interface{}, bundlePath string) (*XCResultSummary, error) {
 	summary := &XCResultSummary{
-		TestBundles:       []types.TestBundle{},
-		FailedTestDetails: []types.TestCase{},
+		TestBundles:        []types.TestBundle{},
+		FailedTestDetails:  []types.TestCase{},
+		SkippedTestDetails: []types.TestCase{},
 	}
 
 	// Navigate the xcresult structure to find test results
@@ -260,6 +262,11 @@ func (p *XCResultParser) parseTests(tests []interface{}, summary *XCResultSummar
 			if value, ok := identifier["_value"].(string); ok {
 				parts := strings.Split(value, "/")
 				if len(parts) > 1 {
+					// Normal test method: "ClassName/testMethodName"
+					testCase.ClassName = parts[0]
+				} else if len(parts) == 1 && parts[0] != "" {
+					// Class-level skip: identifier is just "ClassName"
+					// This happens when entire test class is skipped via @available
 					testCase.ClassName = parts[0]
 				}
 			}
@@ -288,6 +295,15 @@ func (p *XCResultParser) parseTests(tests []interface{}, summary *XCResultSummar
 		switch testCase.Status {
 		case "success":
 			summary.PassedTests++
+		case "":
+			// Empty status indicates class-level skip (e.g., @available attribute)
+			// The entire test class was skipped before any tests ran
+			summary.SkippedTests++
+			testCase.Status = "skipped (class)"
+			if testCase.Message == "" {
+				testCase.Message = "Test class skipped (likely via @available or conditional compilation)"
+			}
+			summary.SkippedTestDetails = append(summary.SkippedTestDetails, testCase)
 		case "failure":
 			summary.FailedTestCount++
 			summary.FailedTestDetails = append(summary.FailedTestDetails, testCase)
@@ -310,10 +326,24 @@ func (p *XCResultParser) parseTests(tests []interface{}, summary *XCResultSummar
 			}
 		case "skipped":
 			summary.SkippedTests++
+			// Capture skip reason if available
+			if summaryMessage, ok := testMap["summaryMessage"].(map[string]interface{}); ok {
+				if value, ok := summaryMessage["_value"].(string); ok {
+					testCase.Message = value
+				}
+			}
+			summary.SkippedTestDetails = append(summary.SkippedTestDetails, testCase)
 		case "expected failure", "expectedfailure":
 			// Expected failures: tests that were expected to fail and did
 			// Count as skipped since they don't affect pass/fail status
 			summary.SkippedTests++
+			// Capture reason for expected failure
+			if summaryMessage, ok := testMap["summaryMessage"].(map[string]interface{}); ok {
+				if value, ok := summaryMessage["_value"].(string); ok {
+					testCase.Message = value
+				}
+			}
+			summary.SkippedTestDetails = append(summary.SkippedTestDetails, testCase)
 		default:
 			// Unknown status - log for debugging and count as skipped
 			// This prevents tests from disappearing from totals
@@ -322,6 +352,8 @@ func (p *XCResultParser) parseTests(tests []interface{}, summary *XCResultSummar
 					testCase.Status, testCase.Name)
 			}
 			summary.SkippedTests++
+			// Also capture the details for unknown/skipped statuses
+			summary.SkippedTestDetails = append(summary.SkippedTestDetails, testCase)
 		}
 	}
 }

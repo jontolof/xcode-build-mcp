@@ -266,6 +266,11 @@ func (t *XcodeTestTool) Execute(ctx context.Context, args map[string]interface{}
 					testResult.TestSummary.FailedTestsDetails = xcresultSummary.FailedTestDetails
 				}
 
+				// Add skipped test details
+				if len(xcresultSummary.SkippedTestDetails) > 0 {
+					testResult.TestSummary.SkippedTestsDetails = xcresultSummary.SkippedTestDetails
+				}
+
 				// Clear parsing warning since we now have accurate data
 				if testResult.TestSummary.UnparsedFailures && xcresultSummary.FailedTestCount > 0 {
 					testResult.TestSummary.ParsingWarning = ""
@@ -371,6 +376,29 @@ func (t *XcodeTestTool) Execute(ctx context.Context, args map[string]interface{}
 		}
 	}
 
+	// Append skipped tests section if any (always show, as skipped tests are technical debt)
+	if len(testResult.TestSummary.SkippedTestsDetails) > 0 {
+		var skippedSection strings.Builder
+		skippedSection.WriteString("\n=== Skipped Tests ===\n")
+		for _, skipped := range testResult.TestSummary.SkippedTestsDetails {
+			// Handle class-level skips (ClassName == Name) vs method-level skips
+			if skipped.ClassName == skipped.Name || skipped.ClassName == "" {
+				// Class-level skip: show just the class name
+				skippedSection.WriteString(fmt.Sprintf("⏭️  %s (entire class)\n", skipped.Name))
+			} else if skipped.ClassName != "" {
+				// Method-level skip: show ClassName.methodName
+				skippedSection.WriteString(fmt.Sprintf("⏭️  %s.%s\n", skipped.ClassName, skipped.Name))
+			} else {
+				// Fallback: just show name
+				skippedSection.WriteString(fmt.Sprintf("⏭️  %s\n", skipped.Name))
+			}
+			if skipped.Message != "" {
+				skippedSection.WriteString(fmt.Sprintf("   Reason: %s\n", skipped.Message))
+			}
+		}
+		filteredOutput += skippedSection.String()
+	}
+
 	testResult.FilteredOutput = filteredOutput
 
 	// Convert test bundles to map format for JSON response
@@ -393,6 +421,41 @@ func (t *XcodeTestTool) Execute(ctx context.Context, args map[string]interface{}
 		"failed_tests":  testResult.TestSummary.FailedTests,
 		"skipped_tests": testResult.TestSummary.SkippedTests,
 	}
+
+	// Include failed test details if any
+	if len(testResult.TestSummary.FailedTestsDetails) > 0 {
+		failedDetails := make([]map[string]interface{}, 0, len(testResult.TestSummary.FailedTestsDetails))
+		for _, tc := range testResult.TestSummary.FailedTestsDetails {
+			failedDetails = append(failedDetails, map[string]interface{}{
+				"name":       tc.Name,
+				"class_name": tc.ClassName,
+				"message":    tc.Message,
+				"duration":   tc.Duration.String(),
+			})
+		}
+		testSummaryMap["failed_tests_details"] = failedDetails
+	}
+
+	// Include skipped test details if any (critical for identifying technical debt)
+	if len(testResult.TestSummary.SkippedTestsDetails) > 0 {
+		skippedDetails := make([]map[string]interface{}, 0, len(testResult.TestSummary.SkippedTestsDetails))
+		for _, tc := range testResult.TestSummary.SkippedTestsDetails {
+			detail := map[string]interface{}{
+				"name":       tc.Name,
+				"class_name": tc.ClassName,
+			}
+			// Include status to differentiate class-level vs method-level skips
+			if tc.Status != "" {
+				detail["status"] = tc.Status
+			}
+			if tc.Message != "" {
+				detail["reason"] = tc.Message
+			}
+			skippedDetails = append(skippedDetails, detail)
+		}
+		testSummaryMap["skipped_tests_details"] = skippedDetails
+	}
+
 	// Include warning fields if set (indicates parsing issues)
 	if testResult.TestSummary.ParsingWarning != "" {
 		testSummaryMap["parsing_warning"] = testResult.TestSummary.ParsingWarning
