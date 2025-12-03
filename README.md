@@ -10,6 +10,7 @@ A lightweight Model Context Protocol (MCP) server for Xcode operations, designed
 - **Smart Auto-Detection** - Automatically detects project types and selects appropriate simulators
 - **Zero Dependencies** - Built entirely with Go standard library
 - **Crash Detection** - Identifies segfaults, Swift fatal errors, and silent failures
+- **Skipped Test Tracking** - Reports which tests are skipped with class names and reasons
 
 ## Design Philosophy
 
@@ -285,6 +286,7 @@ Raw xcodebuild output can be extremely verbose (100K+ characters for a typical t
 - Build/test success or failure
 - Error messages with file/line info
 - Test failure details
+- Skipped test details (class name, reason)
 - Warnings
 - Final summaries
 
